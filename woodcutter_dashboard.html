@@ -590,8 +590,7 @@ function populateFilters() {
 function shortJournal(j) {
   if (j.includes('BRUSSELS') || j.includes('Brussels')) return 'Brussels';
   if (j.includes('ANTWERP') || j.includes('Antwerp'))   return 'Antwerp';
-  if (j.includes('Credit Card') || j.includes('Visa'))  return 'Credit Card';
-  return j.split(' - ')[0].trim();
+  return j;
 }
 
 function applyFilters() {
