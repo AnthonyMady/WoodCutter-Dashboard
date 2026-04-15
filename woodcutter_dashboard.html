@@ -3,150 +3,354 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>WoodCutter — Missing Documents</title>
+<title>WoodCutter — Missing Documents Dashboard</title>
 <script src="https://apis.google.com/js/api.js"></script>
 <script src="https://accounts.google.com/gsi/client"></script>
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&display=swap');
 
-:root {
-  --bg: #0a0a0b;
-  --s1: #111113;
-  --s2: #18181c;
-  --s3: #1f1f25;
-  --b1: rgba(255,255,255,0.06);
-  --b2: rgba(255,255,255,0.11);
-  --b3: rgba(255,255,255,0.18);
-  --text: #ececec;
-  --muted: #666;
-  --muted2: #888;
-  --gold: #d4a843;
-  --gold2: #f0c96a;
-  --red: #c95555;
-  --green: #4aab78;
-  --blue: #4a8fc9;
-  --orange: #c97d45;
-  --radius: 10px;
-}
+  :root {
+    --bg: #0f0f0f;
+    --surface: #181818;
+    --surface2: #222222;
+    --border: rgba(255,255,255,0.08);
+    --border2: rgba(255,255,255,0.14);
+    --text: #f0ede8;
+    --muted: #888;
+    --accent: #e8c97a;
+    --red: #e05c5c;
+    --green: #5cba8a;
+    --blue: #5c9be0;
+    --orange: #e0935c;
+  }
 
-*{box-sizing:border-box;margin:0;padding:0}
-body{font-family:'Syne',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:14px}
+  * { box-sizing: border-box; margin: 0; padding: 0; }
 
-#auth-screen{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;gap:32px;padding:40px;position:relative;overflow:hidden}
-#auth-screen::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse 60% 50% at 50% 0%, rgba(212,168,67,0.08) 0%, transparent 70%);pointer-events:none}
-.auth-wordmark{font-size:10px;letter-spacing:0.3em;color:var(--muted2);text-transform:uppercase;font-weight:500}
-.auth-title{font-size:42px;font-weight:700;letter-spacing:-0.03em;line-height:1.1;text-align:center;max-width:400px}
-.auth-title span{color:var(--gold)}
-.auth-divider{width:40px;height:1px;background:var(--b3)}
-.auth-sub{font-size:13px;color:var(--muted2);text-align:center;max-width:340px;line-height:1.7;font-family:'DM Mono',monospace}
-.auth-btn{display:flex;align-items:center;gap:10px;background:var(--gold);color:#0a0a0b;border:none;border-radius:8px;padding:14px 32px;font-family:'Syne',sans-serif;font-size:13px;font-weight:700;cursor:pointer;transition:all 0.2s;letter-spacing:0.04em}
-.auth-btn:hover{background:var(--gold2);transform:translateY(-1px)}
-#auth-error{color:var(--red);font-size:12px;display:none;font-family:'DM Mono',monospace}
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    font-size: 14px;
+  }
 
-#loading-screen{display:none;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;gap:20px}
-.spinner{width:28px;height:28px;border:1.5px solid var(--b2);border-top-color:var(--gold);border-radius:50%;animation:spin 0.7s linear infinite}
-@keyframes spin{to{transform:rotate(360deg)}}
-.loading-text{font-size:11px;color:var(--muted);font-family:'DM Mono',monospace;letter-spacing:0.08em}
+  /* AUTH SCREEN */
+  #auth-screen {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    gap: 24px;
+    padding: 40px;
+  }
+  .auth-logo {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+  .auth-title {
+    font-size: 32px;
+    font-weight: 300;
+    letter-spacing: -0.02em;
+    color: var(--text);
+    text-align: center;
+  }
+  .auth-sub {
+    font-size: 14px;
+    color: var(--muted);
+    text-align: center;
+    max-width: 360px;
+    line-height: 1.6;
+  }
+  .auth-btn {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--accent);
+    color: #0f0f0f;
+    border: none;
+    border-radius: 6px;
+    padding: 12px 28px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.15s;
+  }
+  .auth-btn:hover { opacity: 0.85; }
 
-#dashboard{display:none;min-height:100vh}
+  /* LOADING */
+  #loading-screen {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    gap: 16px;
+  }
+  .spinner {
+    width: 32px; height: 32px;
+    border: 2px solid var(--border2);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-text { font-size: 13px; color: var(--muted); font-family: 'DM Mono', monospace; }
 
-header{border-bottom:1px solid var(--b1);padding:0 32px;height:56px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:rgba(10,10,11,0.92);backdrop-filter:blur(12px);z-index:10}
-.hdr-brand{display:flex;align-items:center;gap:12px}
-.hdr-dot{width:7px;height:7px;border-radius:50%;background:var(--gold)}
-.hdr-title{font-size:13px;font-weight:600;letter-spacing:0.04em}
-.hdr-pipe{width:1px;height:16px;background:var(--b2)}
-.hdr-sub{font-size:11px;color:var(--muted);font-family:'DM Mono',monospace;letter-spacing:0.04em}
-.hdr-right{display:flex;align-items:center;gap:14px}
-.last-upd{font-size:11px;color:var(--muted);font-family:'DM Mono',monospace}
-.refresh-btn{background:transparent;border:1px solid var(--b2);color:var(--muted2);border-radius:6px;padding:5px 14px;font-size:11px;font-family:'Syne',sans-serif;font-weight:600;cursor:pointer;transition:all 0.15s;letter-spacing:0.06em;text-transform:uppercase}
-.refresh-btn:hover{border-color:var(--b3);color:var(--text)}
+  /* DASHBOARD */
+  #dashboard { display: none; }
 
-.filters{padding:12px 32px;display:flex;gap:8px;flex-wrap:wrap;border-bottom:1px solid var(--b1);background:var(--s1)}
-.filters input,.filters select{background:var(--s2);border:1px solid var(--b1);color:var(--text);border-radius:6px;padding:6px 12px;font-size:12px;font-family:'DM Mono',monospace;outline:none;transition:border-color 0.15s;-webkit-appearance:none}
-.filters input{width:200px}
-.filters input::placeholder{color:var(--muted)}
-.filters input:focus,.filters select:focus{border-color:var(--gold)}
-.filters select option{background:var(--s2)}
+  header {
+    border-bottom: 1px solid var(--border);
+    padding: 20px 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    background: var(--bg);
+    z-index: 10;
+  }
+  .header-left { display: flex; flex-direction: column; gap: 2px; }
+  .header-title {
+    font-size: 16px;
+    font-weight: 500;
+    letter-spacing: -0.01em;
+  }
+  .header-sub {
+    font-size: 11px;
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+    letter-spacing: 0.05em;
+  }
+  .header-right { display: flex; align-items: center; gap: 12px; }
+  .last-updated {
+    font-size: 11px;
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+  }
+  .refresh-btn {
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    color: var(--text);
+    border-radius: 5px;
+    padding: 6px 14px;
+    font-size: 12px;
+    font-family: 'DM Sans', sans-serif;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .refresh-btn:hover { background: #2a2a2a; }
 
-main{padding:24px 32px;max-width:1360px;margin:0 auto}
+  /* FILTERS */
+  .filters {
+    padding: 16px 32px;
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+  }
+  .filters input, .filters select {
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    color: var(--text);
+    border-radius: 5px;
+    padding: 7px 12px;
+    font-size: 12px;
+    font-family: 'DM Sans', sans-serif;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .filters input { width: 220px; }
+  .filters input:focus, .filters select:focus { border-color: var(--accent); }
+  .filters select option { background: var(--surface2); }
 
-.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px}
-.kpi{background:var(--s1);border:1px solid var(--b1);border-radius:var(--radius);padding:18px 20px;position:relative;overflow:hidden;transition:border-color 0.2s}
-.kpi:hover{border-color:var(--b2)}
-.kpi::after{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--b3),transparent)}
-.kpi-label{font-size:10px;color:var(--muted);font-family:'DM Mono',monospace;letter-spacing:0.12em;text-transform:uppercase;margin-bottom:10px}
-.kpi-value{font-size:26px;font-weight:700;letter-spacing:-0.03em;line-height:1}
-.kpi-sub{font-size:10px;color:var(--muted);font-family:'DM Mono',monospace;margin-top:6px}
+  /* MAIN */
+  main { padding: 28px 32px; max-width: 1300px; margin: 0 auto; }
 
-.charts{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
-.chart-card,.chart-card-wide{background:var(--s1);border:1px solid var(--b1);border-radius:var(--radius);padding:20px}
-.chart-card-wide{margin-bottom:20px}
-.chart-title{font-size:10px;color:var(--muted);font-family:'DM Mono',monospace;letter-spacing:0.12em;text-transform:uppercase;margin-bottom:16px}
-.chart-wrap{position:relative;height:180px}
-.chart-wrap-sm{position:relative;height:110px}
+  /* KPIS */
+  .kpis {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+  .kpi {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 18px 20px;
+  }
+  .kpi-label {
+    font-size: 11px;
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+  .kpi-value {
+    font-size: 24px;
+    font-weight: 500;
+    letter-spacing: -0.02em;
+  }
 
-.table-card{background:var(--s1);border:1px solid var(--b1);border-radius:var(--radius);overflow:hidden}
-.table-header{padding:14px 20px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--b1)}
-.table-header-title{font-size:10px;color:var(--muted);font-family:'DM Mono',monospace;letter-spacing:0.12em;text-transform:uppercase}
-.table-wrap{overflow-x:auto}
-table{width:100%;border-collapse:collapse}
-th{text-align:left;padding:9px 14px;font-size:10px;font-family:'DM Mono',monospace;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--b1);background:var(--s2);white-space:nowrap;cursor:pointer;user-select:none}
-th:hover{color:var(--muted2)}
-td{padding:9px 14px;border-bottom:1px solid var(--b1);vertical-align:middle;font-size:12px}
-tr:last-child td{border-bottom:none}
-tr:hover td{background:rgba(255,255,255,0.015)}
+  /* CHARTS */
+  .charts {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+  .chart-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 20px;
+  }
+  .chart-title {
+    font-size: 11px;
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 16px;
+  }
+  .chart-wrap { position: relative; height: 180px; }
 
-.mono{font-family:'DM Mono',monospace;font-size:11px}
-.label-cell{max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted);font-size:11px;font-family:'DM Mono',monospace}
+  .chart-card-wide {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 24px;
+  }
+  .chart-wrap-sm { position: relative; height: 120px; }
 
-.badge{display:inline-flex;align-items:center;font-size:10px;font-family:'DM Mono',monospace;padding:3px 8px;border-radius:4px;font-weight:500;letter-spacing:0.04em;white-space:nowrap}
-.b-critical{background:rgba(201,85,85,0.12);color:#e07070;border:1px solid rgba(201,85,85,0.2)}
-.b-high{background:rgba(201,125,69,0.12);color:#d99060;border:1px solid rgba(201,125,69,0.2)}
-.b-medium{background:rgba(74,143,201,0.12);color:#6aabdb;border:1px solid rgba(74,143,201,0.2)}
-.b-low{background:rgba(74,171,120,0.12);color:#5dcb90;border:1px solid rgba(74,171,120,0.2)}
-.b-debit{background:rgba(201,85,85,0.1);color:#e07070;border:1px solid rgba(201,85,85,0.15)}
-.b-credit{background:rgba(74,171,120,0.1);color:#5dcb90;border:1px solid rgba(74,171,120,0.15)}
+  /* TABLE */
+  .table-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; }
+  th {
+    text-align: left;
+    padding: 10px 14px;
+    font-size: 10px;
+    font-family: 'DM Mono', monospace;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    border-bottom: 1px solid var(--border);
+    background: var(--surface2);
+    white-space: nowrap;
+    cursor: pointer;
+    user-select: none;
+  }
+  th:hover { color: var(--text); }
+  td {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: middle;
+    font-size: 13px;
+  }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: rgba(255,255,255,0.02); }
 
-.table-footer{padding:10px 14px;font-size:11px;color:var(--muted);font-family:'DM Mono',monospace;border-top:1px solid var(--b1);background:var(--s2)}
-.sort-icon{font-size:9px;margin-left:4px;opacity:0.5}
-.error-box{background:rgba(201,85,85,0.08);border:1px solid rgba(201,85,85,0.25);border-radius:var(--radius);padding:16px 20px;color:#e07070;font-size:12px;margin:32px;font-family:'DM Mono',monospace}
+  .label-cell {
+    max-width: 260px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--muted);
+    font-size: 12px;
+    cursor: help;
+  }
+
+  .badge {
+    display: inline-block;
+    font-size: 10px;
+    font-family: 'DM Mono', monospace;
+    padding: 3px 8px;
+    border-radius: 3px;
+    font-weight: 500;
+    letter-spacing: 0.05em;
+  }
+  .b-critical { background: rgba(224,92,92,0.15); color: #e05c5c; }
+  .b-high     { background: rgba(224,147,92,0.15); color: #e0935c; }
+  .b-medium   { background: rgba(92,155,224,0.15); color: #5c9be0; }
+  .b-low      { background: rgba(92,186,138,0.15); color: #5cba8a; }
+  .b-debit    { background: rgba(224,92,92,0.12); color: #e05c5c; }
+  .b-credit   { background: rgba(92,186,138,0.12); color: #5cba8a; }
+
+  .table-footer {
+    padding: 10px 14px;
+    font-size: 11px;
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+    border-top: 1px solid var(--border);
+  }
+
+  .sort-icon { font-size: 9px; margin-left: 3px; opacity: 0.4; }
+
+  /* ERROR */
+  .error-box {
+    background: rgba(224,92,92,0.1);
+    border: 1px solid rgba(224,92,92,0.3);
+    border-radius: 8px;
+    padding: 16px 20px;
+    color: #e05c5c;
+    font-size: 13px;
+    margin: 32px;
+  }
 </style>
 </head>
 <body>
 
+<!-- AUTH -->
 <div id="auth-screen">
-  <div class="auth-wordmark">WoodCutter Group</div>
-  <div class="auth-title">Missing<br><span>Documents</span></div>
-  <div class="auth-divider"></div>
+  <div>
+    <div class="auth-logo">WoodCutter Group</div>
+    <div class="auth-title">Missing Documents<br>Dashboard</div>
+  </div>
   <div class="auth-sub">Connects to your Google Drive and loads the latest Odoo accounting CSV exports automatically.</div>
   <button class="auth-btn" onclick="signIn()">
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.372 0 0 5.373 0 12s5.372 12 12 12 12-5.373 12-12S18.628 0 12 0zm5.082 16.5c-.975.975-2.268 1.5-3.582 1.5-1.314 0-2.607-.525-3.582-1.5C8.943 15.525 8.418 14.232 8.418 12.918c0-1.314.525-2.607 1.5-3.582C10.893 8.361 12.186 7.836 13.5 7.836c1.206 0 2.34.438 3.222 1.236l-1.308 1.308C14.904 9.9 14.22 9.618 13.5 9.618c-.87 0-1.686.339-2.298.951-.612.612-.951 1.428-.951 2.349 0 .87.339 1.686.951 2.298.612.612 1.428.951 2.298.951.744 0 1.44-.24 1.998-.672.558-.432.924-1.044 1.032-1.728H13.5v-1.8h4.932c.054.3.078.6.078.9 0 1.314-.525 2.607-1.428 3.633z"/></svg>
     Sign in with Google
   </button>
-  <div id="auth-error"></div>
+  <div id="auth-error" style="color:#e05c5c; font-size:12px; display:none;"></div>
 </div>
 
+<!-- LOADING -->
 <div id="loading-screen">
   <div class="spinner"></div>
   <div class="loading-text" id="loading-text">Connecting to Google Drive...</div>
 </div>
 
+<!-- DASHBOARD -->
 <div id="dashboard">
   <header>
-    <div class="hdr-brand">
-      <div class="hdr-dot"></div>
-      <div class="hdr-title">WOODCUTTER</div>
-      <div class="hdr-pipe"></div>
-      <div class="hdr-sub" id="header-sub">Loading...</div>
+    <div class="header-left">
+      <div class="header-title">Missing Documents — Odoo Accounting</div>
+      <div class="header-sub" id="header-sub">Loading...</div>
     </div>
-    <div class="hdr-right">
-      <div class="last-upd" id="last-updated"></div>
+    <div class="header-right">
+      <div class="last-updated" id="last-updated"></div>
       <button class="refresh-btn" onclick="loadData()">↻ Refresh</button>
     </div>
   </header>
 
   <div class="filters">
-    <input type="text" id="search" placeholder="Search label or partner…" oninput="applyFilters()" />
+    <input type="text" id="search" placeholder="Search label or partner..." oninput="applyFilters()" />
     <select id="f-journal" onchange="applyFilters()"><option value="">All journals</option></select>
     <select id="f-month" onchange="applyFilters()"><option value="">All months</option></select>
     <select id="f-aging" onchange="applyFilters()">
@@ -180,9 +384,6 @@ tr:hover td{background:rgba(255,255,255,0.015)}
       <div class="chart-wrap-sm"><canvas id="chart-month"></canvas></div>
     </div>
     <div class="table-card">
-      <div class="table-header">
-        <div class="table-header-title">Transactions</div>
-      </div>
       <div class="table-wrap">
         <table>
           <thead><tr>
@@ -205,26 +406,324 @@ tr:hover td{background:rgba(255,255,255,0.015)}
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <script>
-const CLIENT_ID='1022326121984-6kvtq4tld6i3gtqq109oo83dj066o70b.apps.googleusercontent.com';
-const FOLDER_NAME='Automated Odoo accounting CSV';
-const SCOPES='https://www.googleapis.com/auth/drive.readonly';
+const CLIENT_ID = '1022326121984-6kvtq4tld6i3gtqq109oo83dj066o70b.apps.googleusercontent.com';
+const FOLDER_NAME = 'Automated Odoo accounting CSV';
+const SCOPES = 'https://www.googleapis.com/auth/drive.readonly';
 
-let tokenClient,accessToken;
-let RAW=[],filtered=[];
-let sortCol='Days',sortAsc=false;
-let cA,cJ,cM;
+let tokenClient, accessToken;
+let RAW = [], filtered = [];
+let sortCol = 'Days', sortAsc = false;
+let cA, cJ, cM;
 
-function signIn(){
-  tokenClient=google.accounts.oauth2.initTokenClient({
-    client_id:CLIENT_ID,scope:SCOPES,
-    callback:async(resp)=>{
-      if(resp.error){showAuthError(resp.error);return;}
-      accessToken=resp.access_token;
+// ── AUTH ──────────────────────────────────────────────
+function signIn() {
+  tokenClient = google.accounts.oauth2.initTokenClient({
+    client_id: CLIENT_ID,
+    scope: SCOPES,
+    callback: async (resp) => {
+      if (resp.error) { showAuthError(resp.error); return; }
+      accessToken = resp.access_token;
       await loadData();
     }
   });
   tokenClient.requestAccessToken();
 }
 
-function showAuthError(msg){
-  const el=document.getElementById('auth-
+function showAuthError(msg) {
+  const el = document.getElementById('auth-error');
+  el.textContent = 'Error: ' + msg;
+  el.style.display = 'block';
+}
+
+// ── LOAD DATA ─────────────────────────────────────────
+async function loadData() {
+  show('loading-screen');
+  setLoading('Finding folder in Google Drive...');
+
+  try {
+    // Find folder
+    const folderRes = await driveApi(`files?q=name='${FOLDER_NAME}' and mimeType='application/vnd.google-apps.folder' and trashed=false&fields=files(id,name)`);
+    if (!folderRes.files.length) throw new Error(`Folder "${FOLDER_NAME}" not found in Drive`);
+    const folderId = folderRes.files[0].id;
+
+    // Find all CSVs in folder
+    setLoading('Finding CSV files...');
+    const csvRes = await driveApi(`files?q='${folderId}' in parents and name contains 'missing_documents' and trashed=false&fields=files(id,name,modifiedTime)&orderBy=modifiedTime desc`);
+    if (!csvRes.files.length) throw new Error('No CSV files found in folder');
+
+    // Parse all CSVs
+    setLoading(`Parsing ${csvRes.files.length} CSV file(s)...`);
+    RAW = [];
+    for (const file of csvRes.files) {
+      const content = await driveDownload(file.id);
+      const rows = parseCSV(content, file.name);
+      RAW = RAW.concat(rows);
+    }
+
+    if (!RAW.length) throw new Error('No data rows found in CSV files');
+
+    // Deduplicate by External ID
+    const seen = new Set();
+    RAW = RAW.filter(r => {
+      if (seen.has(r.ExternalID)) return false;
+      seen.add(r.ExternalID);
+      return true;
+    });
+
+    // Sort by days desc
+    RAW.sort((a,b) => b.Days - a.Days);
+
+    // Update header
+    const latest = csvRes.files[0].modifiedTime;
+    document.getElementById('last-updated').textContent = 'Updated ' + new Date(latest).toLocaleDateString('en-GB', {day:'numeric',month:'short',year:'numeric'});
+    document.getElementById('header-sub').textContent = `${RAW.length} unreconciled lines · ${csvRes.files.length} journal(s)`;
+
+    // Populate filters
+    populateFilters();
+    show('dashboard');
+    applyFilters();
+
+  } catch(e) {
+    show('dashboard');
+    document.querySelector('main').innerHTML = `<div class="error-box">⚠ ${e.message}</div>`;
+  }
+}
+
+// ── DRIVE API ─────────────────────────────────────────
+async function driveApi(path) {
+  const res = await fetch(`https://www.googleapis.com/drive/v3/${path}`, {
+    headers: { Authorization: `Bearer ${accessToken}` }
+  });
+  return res.json();
+}
+
+async function driveDownload(fileId) {
+  const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
+    headers: { Authorization: `Bearer ${accessToken}` }
+  });
+  return res.text();
+}
+
+// ── CSV PARSER ────────────────────────────────────────
+function parseCSV(content, filename) {
+  const lines = content.trim().split('\n');
+  if (lines.length < 2) return [];
+
+  // Detect delimiter
+  const delim = lines[0].includes(';') ? ';' : ',';
+
+  const headers = parseLine(lines[0], delim);
+  const rows = [];
+
+  for (let i = 1; i < lines.length; i++) {
+    const vals = parseLine(lines[i], delim);
+    if (vals.length < 3) continue;
+    const obj = {};
+    headers.forEach((h, idx) => { obj[h.trim()] = (vals[idx] || '').trim(); });
+
+    const amount = parseFloat(obj['Amount']) || 0;
+    const days = parseInt(obj['Days Unreconciled']) || 0;
+    const aging = obj['Aging Bucket'] || classifyAging(days);
+    const dir = obj['Debit/Credit'] || (amount < 0 ? 'Debit' : 'Credit');
+    const month = obj['Month'] || (obj['Date'] || '').substring(0, 7);
+    const journal = (obj['Journal'] || '').trim();
+
+    rows.push({
+      Date: obj['Date'] || '',
+      Month: month,
+      Journal: journal,
+      Partner: obj['Partner'] || '',
+      Label: (obj['Label'] || '').replace(/\s+/g, ' ').trim(),
+      Amount: amount,
+      Dir: dir,
+      Days: days,
+      Aging: aging,
+      ExternalID: obj['External ID'] || (obj['Date'] + obj['Amount'] + obj['Label'] || '').substring(0, 40),
+    });
+  }
+  return rows;
+}
+
+function parseLine(line, delim) {
+  const result = [];
+  let cur = '', inQ = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (c === '"') { inQ = !inQ; continue; }
+    if (c === delim && !inQ) { result.push(cur); cur = ''; continue; }
+    cur += c;
+  }
+  result.push(cur);
+  return result;
+}
+
+function classifyAging(days) {
+  if (days > 90) return '90+ days';
+  if (days > 30) return '31-90 days';
+  if (days > 7)  return '8-30 days';
+  return '0-7 days';
+}
+
+// ── FILTERS ───────────────────────────────────────────
+function populateFilters() {
+  const journals = [...new Set(RAW.map(r => r.Journal))].sort();
+  const months   = [...new Set(RAW.map(r => r.Month))].sort();
+
+  const jSel = document.getElementById('f-journal');
+  jSel.innerHTML = '<option value="">All journals</option>';
+  journals.forEach(j => {
+    const o = document.createElement('option');
+    o.value = j; o.textContent = shortJournal(j);
+    jSel.appendChild(o);
+  });
+
+  const mSel = document.getElementById('f-month');
+  mSel.innerHTML = '<option value="">All months</option>';
+  months.forEach(m => {
+    const o = document.createElement('option');
+    o.value = m;
+    o.textContent = new Date(m + '-01').toLocaleDateString('en-GB', {month:'long', year:'numeric'});
+    mSel.appendChild(o);
+  });
+}
+
+function shortJournal(j) {
+  if (j.includes('BRUSSELS') || j.includes('Brussels')) return 'Brussels';
+  if (j.includes('ANTWERP') || j.includes('Antwerp'))   return 'Antwerp';
+  return j;
+}
+
+function applyFilters() {
+  const s = document.getElementById('search').value.toLowerCase();
+  const j = document.getElementById('f-journal').value;
+  const m = document.getElementById('f-month').value;
+  const a = document.getElementById('f-aging').value;
+  const d = document.getElementById('f-dir').value;
+  filtered = RAW.filter(r =>
+    (!s || r.Label.toLowerCase().includes(s) || r.Partner.toLowerCase().includes(s)) &&
+    (!j || r.Journal === j) &&
+    (!m || r.Month === m) &&
+    (!a || r.Aging === a) &&
+    (!d || r.Dir === d)
+  );
+  renderAll();
+}
+
+// ── SORT ──────────────────────────────────────────────
+function sortBy(col) {
+  sortAsc = sortCol === col ? !sortAsc : col !== 'Days';
+  sortCol = col;
+  renderAll();
+}
+
+// ── RENDER ────────────────────────────────────────────
+function renderAll() {
+  const sorted = [...filtered].sort((a,b) => {
+    let av = a[sortCol], bv = b[sortCol];
+    if (typeof av === 'string') { av = av.toLowerCase(); bv = bv.toLowerCase(); }
+    return sortAsc ? (av > bv ? 1 : -1) : (av < bv ? 1 : -1);
+  });
+
+  document.querySelectorAll('.sort-icon').forEach(e => e.textContent = '');
+  const si = document.getElementById('si-' + sortCol);
+  if (si) si.textContent = sortAsc ? '▲' : '▼';
+
+  const totD = filtered.filter(r => r.Dir==='Debit').reduce((s,r) => s+r.Amount, 0);
+  const totC = filtered.filter(r => r.Dir==='Credit').reduce((s,r) => s+r.Amount, 0);
+  const totN = filtered.reduce((s,r) => s+r.Amount, 0);
+  const maxD = filtered.length ? Math.max(...filtered.map(r => r.Days)) : 0;
+
+  document.getElementById('kpis').innerHTML = `
+    <div class="kpi"><div class="kpi-label">Missing docs</div><div class="kpi-value">${filtered.length}</div></div>
+    <div class="kpi"><div class="kpi-label">Total exposure</div><div class="kpi-value" style="color:var(--red)">${fmt(totD)}</div></div>
+    <div class="kpi"><div class="kpi-label">Unmatched income</div><div class="kpi-value" style="color:var(--green)">+${fmt(Math.abs(totC))}</div></div>
+    <div class="kpi"><div class="kpi-label">Max days open</div><div class="kpi-value" style="color:var(--orange)">${maxD}d</div></div>`;
+
+  document.getElementById('tbody').innerHTML = sorted.map(r => {
+    const as = r.Amount < 0 ? 'color:var(--red)' : 'color:var(--green)';
+    return `<tr>
+      <td style="font-family:'DM Mono',monospace;font-size:11px;white-space:nowrap;">${r.Date}</td>
+      <td style="font-size:12px;white-space:nowrap;">${shortJournal(r.Journal)}</td>
+      <td style="font-size:12px;max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${r.Partner}">${r.Partner||'—'}</td>
+      <td style="font-family:'DM Mono',monospace;font-size:12px;white-space:nowrap;${as}">${fmt(r.Amount)}</td>
+      <td><span class="badge ${r.Dir==='Debit'?'b-debit':'b-credit'}">${r.Dir}</span></td>
+      <td style="font-family:'DM Mono',monospace;font-size:12px;text-align:center;">${r.Days}</td>
+      <td>${ageBadge(r.Aging)}</td>
+      <td class="label-cell" title="${r.Label}">${r.Label}</td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('tfoot').textContent = `${filtered.length} of ${RAW.length} lines · net ${fmt(totN)}`;
+
+  updateCharts();
+}
+
+function fmt(n) {
+  return (n<0?'-':'') + Math.abs(n).toLocaleString('fr-BE',{minimumFractionDigits:2,maximumFractionDigits:2}) + ' €';
+}
+
+function ageBadge(a) {
+  const c = a==='90+ days'?'b-critical':a==='31-90 days'?'b-high':a==='8-30 days'?'b-medium':'b-low';
+  return `<span class="badge ${c}">${a}</span>`;
+}
+
+// ── CHARTS ────────────────────────────────────────────
+function updateCharts() {
+  const gc = 'rgba(255,255,255,0.06)', tc = '#555';
+  const base = {
+    responsive:true, maintainAspectRatio:false,
+    plugins:{ legend:{display:false} },
+    scales:{
+      x:{ grid:{color:gc}, ticks:{color:tc,font:{size:10}} },
+      y:{ grid:{color:gc}, ticks:{color:tc,font:{size:10}}, beginAtZero:true }
+    }
+  };
+
+  const ab = ['90+ days','31-90 days','8-30 days','0-7 days'];
+  const ac = ab.map(b => filtered.filter(r=>r.Aging===b).length);
+
+  const journals = [...new Set(RAW.map(r=>r.Journal))].sort();
+  const jl = journals.map(j => shortJournal(j));
+  const ja = journals.map(j => Math.abs(filtered.filter(r=>r.Journal===j&&r.Dir==='Debit').reduce((s,r)=>s+r.Amount,0)));
+  const jc = ['#5c9be0','#5cba8a','#e8c97a','#e0935c','#e05c5c'];
+
+  const months = [...new Set(RAW.map(r=>r.Month))].sort();
+  const ml = months.map(m => new Date(m+'-01').toLocaleDateString('en-GB',{month:'short',year:'2-digit'}));
+  const mc = months.map(m => filtered.filter(r=>r.Month===m).length);
+
+  if(cA) cA.destroy();
+  cA = new Chart(document.getElementById('chart-aging'), {
+    type:'bar',
+    data:{ labels:ab, datasets:[{ data:ac, backgroundColor:['#e05c5c','#e0935c','#5c9be0','#5cba8a'], borderRadius:3 }] },
+    options:{...base, scales:{...base.scales, x:{...base.scales.x, ticks:{color:tc,font:{size:10},maxRotation:15}}}}
+  });
+
+  if(cJ) cJ.destroy();
+  cJ = new Chart(document.getElementById('chart-journal'), {
+    type:'bar',
+    data:{ labels:jl, datasets:[{ data:ja, backgroundColor:jl.map((_,i)=>jc[i%jc.length]), borderRadius:3 }] },
+    options:{...base, scales:{...base.scales, y:{...base.scales.y, ticks:{color:tc,font:{size:10},callback:v=>v+'€'}}}}
+  });
+
+  if(cM) cM.destroy();
+  cM = new Chart(document.getElementById('chart-month'), {
+    type:'bar',
+    data:{ labels:ml, datasets:[{ data:mc, backgroundColor:'#5c9be0', borderRadius:3 }] },
+    options:base
+  });
+}
+
+// ── UTILS ─────────────────────────────────────────────
+function show(id) {
+  ['auth-screen','loading-screen','dashboard'].forEach(s => {
+    const el = document.getElementById(s);
+    el.style.display = s === id ? (s === 'loading-screen' ? 'flex' : 'block') : 'none';
+  });
+}
+
+function setLoading(msg) {
+  document.getElementById('loading-text').textContent = msg;
+}
+</script>
+</body>
+</html>
