@@ -476,4 +476,70 @@ function renderAll(){
   }).join('');
 
   document.getElementById('tfoot').textContent=`${filtered.length} of ${RAW.length} lines · net ${fmt(totN)}`;
-  update
+  updateCharts();
+}
+
+function fmt(n){
+  return(n<0?'-':'')+Math.abs(n).toLocaleString('fr-BE',{minimumFractionDigits:2,maximumFractionDigits:2})+' €';
+}
+function ageBadge(a){
+  const c=a==='90+ days'?'b-critical':a==='31-90 days'?'b-high':a==='8-30 days'?'b-medium':'b-low';
+  return`<span class="badge ${c}">${a}</span>`;
+}
+
+// ── CHARTS ────────────────────────────────────────────
+function updateCharts(){
+  const gc='rgba(255,255,255,0.04)',tc='#555';
+  const base={
+    responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{display:false}},
+    scales:{
+      x:{grid:{color:gc},ticks:{color:tc,font:{size:10,family:'DM Mono, monospace'}}},
+      y:{grid:{color:gc},ticks:{color:tc,font:{size:10,family:'DM Mono, monospace'}},beginAtZero:true}
+    }
+  };
+
+  // Aging
+  const ab=['90+ days','31-90 days','8-30 days','0-7 days'];
+  const ac=ab.map(b=>filtered.filter(r=>r.Aging===b).length);
+  if(cA)cA.destroy();
+  cA=new Chart(document.getElementById('chart-aging'),{
+    type:'bar',
+    data:{labels:ab,datasets:[{data:ac,backgroundColor:['rgba(201,85,85,0.7)','rgba(201,125,69,0.7)','rgba(74,143,201,0.7)','rgba(74,171,120,0.7)'],borderRadius:4,borderSkipped:false}]},
+    options:{...base,scales:{...base.scales,x:{...base.scales.x,ticks:{color:tc,font:{size:10},maxRotation:0}}}}
+  });
+
+  // Journal exposure
+  const journals=[...new Set(RAW.map(r=>r.Journal))].sort();
+  const jl=journals.map(j=>shortJournal(j));
+  const ja=journals.map(j=>Math.abs(filtered.filter(r=>r.Journal===j&&r.Dir==='Debit').reduce((s,r)=>s+r.Amount,0)));
+  if(cJ)cJ.destroy();
+  cJ=new Chart(document.getElementById('chart-journal'),{
+    type:'bar',
+    data:{labels:jl,datasets:[{data:ja,backgroundColor:['rgba(212,168,67,0.65)','rgba(74,143,201,0.65)','rgba(74,171,120,0.65)','rgba(201,85,85,0.65)','rgba(201,125,69,0.65)'],borderRadius:4,borderSkipped:false}]},
+    options:{...base,scales:{...base.scales,y:{...base.scales.y,ticks:{color:tc,font:{size:10},callback:v=>v+'€'}}}}
+  });
+
+  // Weekly trend
+  const sortedWeeks=Object.keys(WEEKLY).map(Number).sort((a,b)=>a-b);
+  const tl=sortedWeeks.map(w=>'W'+w);
+  const td=sortedWeeks.map(w=>WEEKLY[w]);
+  if(cT)cT.destroy();
+  cT=new Chart(document.getElementById('chart-trend'),{
+    type:'line',
+    data:{labels:tl,datasets:[{data:td,borderColor:'rgba(212,168,67,0.8)',backgroundColor:'rgba(212,168,67,0.08)',borderWidth:2,pointBackgroundColor:'rgba(212,168,67,0.9)',pointRadius:4,tension:0.3,fill:true}]},
+    options:{...base,scales:{...base.scales,y:{...base.scales.y,ticks:{color:tc,font:{size:10},stepSize:1}}}}
+  });
+}
+
+// ── UTILS ─────────────────────────────────────────────
+function show(id){
+  ['auth-screen','loading-screen','dashboard'].forEach(s=>{
+    const el=document.getElementById(s);
+    el.style.display=s===id?(s==='loading-screen'?'flex':'block'):'none';
+  });
+}
+function setLoading(msg){document.getElementById('loading-text').textContent=msg;}
+</script>
+</body>
+</html>
