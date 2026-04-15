@@ -227,4 +227,219 @@ function signIn(){
 }
 
 function showAuthError(msg){
-  const el=document.getElementById('auth-
+  const el=document.getElementById('auth-error');
+  el.textContent='Error: '+msg;el.style.display='block';
+}
+
+async function loadData(){
+  show('loading-screen');setLoading('Finding folder in Google Drive…');
+  try{
+    const folderRes=await driveApi(`files?q=name='${FOLDER_NAME}' and mimeType='application/vnd.google-apps.folder' and trashed=false&fields=files(id,name)`);
+    if(!folderRes.files.length) throw new Error(`Folder "${FOLDER_NAME}" not found`);
+    const folderId=folderRes.files[0].id;
+    setLoading('Finding CSV files…');
+    const csvRes=await driveApi(`files?q='${folderId}' in parents and name contains 'missing_documents' and trashed=false&fields=files(id,name,modifiedTime)&orderBy=modifiedTime desc`);
+    if(!csvRes.files.length) throw new Error('No CSV files found');
+    setLoading(`Parsing ${csvRes.files.length} CSV file(s)…`);
+    RAW=[];
+    for(const file of csvRes.files){
+      const content=await driveDownload(file.id);
+      RAW=RAW.concat(parseCSV(content,file.name));
+    }
+    if(!RAW.length) throw new Error('No data rows found');
+    const seen=new Set();
+    RAW=RAW.filter(r=>{if(seen.has(r.ExternalID))return false;seen.add(r.ExternalID);return true;});
+    RAW.sort((a,b)=>b.Days-a.Days);
+    const latest=csvRes.files[0].modifiedTime;
+    document.getElementById('last-updated').textContent='Updated '+new Date(latest).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});
+    document.getElementById('header-sub').textContent=`${RAW.length} unreconciled lines · ${csvRes.files.length} journal(s)`;
+    populateFilters();show('dashboard');applyFilters();
+  }catch(e){
+    show('dashboard');
+    document.querySelector('main').innerHTML=`<div class="error-box">⚠ ${e.message}</div>`;
+  }
+}
+
+async function driveApi(path){
+  const res=await fetch(`https://www.googleapis.com/drive/v3/${path}`,{headers:{Authorization:`Bearer ${accessToken}`}});
+  return res.json();
+}
+async function driveDownload(fileId){
+  const res=await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,{headers:{Authorization:`Bearer ${accessToken}`}});
+  return res.text();
+}
+
+function parseCSV(content,filename){
+  const lines=content.trim().split('\n');
+  if(lines.length<2)return[];
+  const delim=lines[0].includes(';')?';':',';
+  const headers=parseLine(lines[0],delim);
+  const rows=[];
+  for(let i=1;i<lines.length;i++){
+    const vals=parseLine(lines[i],delim);
+    if(vals.length<3)continue;
+    const obj={};
+    headers.forEach((h,idx)=>{obj[h.trim()]=(vals[idx]||'').trim();});
+    const amount=parseFloat(obj['Amount'])||0;
+    const days=parseInt(obj['Days Unreconciled'])||0;
+    rows.push({
+      Date:obj['Date']||'',Month:obj['Month']||(obj['Date']||'').substring(0,7),
+      Journal:(obj['Journal']||'').trim(),Partner:obj['Partner']||'',
+      Label:(obj['Label']||'').replace(/\s+/g,' ').trim(),Amount:amount,
+      Dir:obj['Debit/Credit']||(amount<0?'Debit':'Credit'),Days:days,
+      Aging:obj['Aging Bucket']||classifyAging(days),
+      ExternalID:obj['External ID']||(obj['Date']+obj['Amount']+obj['Label']||'').substring(0,40),
+    });
+  }
+  return rows;
+}
+
+function parseLine(line,delim){
+  const result=[];let cur='',inQ=false;
+  for(let i=0;i<line.length;i++){
+    const c=line[i];
+    if(c==='"'){inQ=!inQ;continue;}
+    if(c===delim&&!inQ){result.push(cur);cur='';continue;}
+    cur+=c;
+  }
+  result.push(cur);return result;
+}
+
+function classifyAging(days){
+  if(days>90)return'90+ days';if(days>30)return'31-90 days';if(days>7)return'8-30 days';return'0-7 days';
+}
+
+function populateFilters(){
+  const journals=[...new Set(RAW.map(r=>r.Journal))].sort();
+  const months=[...new Set(RAW.map(r=>r.Month))].sort();
+  const jSel=document.getElementById('f-journal');
+  jSel.innerHTML='<option value="">All journals</option>';
+  journals.forEach(j=>{const o=document.createElement('option');o.value=j;o.textContent=shortJournal(j);jSel.appendChild(o);});
+  const mSel=document.getElementById('f-month');
+  mSel.innerHTML='<option value="">All months</option>';
+  months.forEach(m=>{const o=document.createElement('option');o.value=m;o.textContent=new Date(m+'-01').toLocaleDateString('en-GB',{month:'long',year:'numeric'});mSel.appendChild(o);});
+}
+
+function shortJournal(j){
+  if(j.includes('BRUSSELS')||j.includes('Brussels'))return'Brussels';
+  if(j.includes('ANTWERP')||j.includes('Antwerp'))return'Antwerp';
+  return j;
+}
+
+function applyFilters(){
+  const s=document.getElementById('search').value.toLowerCase();
+  const j=document.getElementById('f-journal').value;
+  const m=document.getElementById('f-month').value;
+  const a=document.getElementById('f-aging').value;
+  const d=document.getElementById('f-dir').value;
+  filtered=RAW.filter(r=>
+    (!s||r.Label.toLowerCase().includes(s)||r.Partner.toLowerCase().includes(s))&&
+    (!j||r.Journal===j)&&(!m||r.Month===m)&&(!a||r.Aging===a)&&(!d||r.Dir===d)
+  );
+  renderAll();
+}
+
+function sortBy(col){
+  sortAsc=sortCol===col?!sortAsc:col!=='Days';sortCol=col;renderAll();
+}
+
+function renderAll(){
+  const sorted=[...filtered].sort((a,b)=>{
+    let av=a[sortCol],bv=b[sortCol];
+    if(typeof av==='string'){av=av.toLowerCase();bv=bv.toLowerCase();}
+    return sortAsc?(av>bv?1:-1):(av<bv?1:-1);
+  });
+  document.querySelectorAll('.sort-icon').forEach(e=>e.textContent='');
+  const si=document.getElementById('si-'+sortCol);
+  if(si)si.textContent=sortAsc?'▲':'▼';
+
+  const totD=filtered.filter(r=>r.Dir==='Debit').reduce((s,r)=>s+r.Amount,0);
+  const totC=filtered.filter(r=>r.Dir==='Credit').reduce((s,r)=>s+r.Amount,0);
+  const totN=filtered.reduce((s,r)=>s+r.Amount,0);
+  const maxD=filtered.length?Math.max(...filtered.map(r=>r.Days)):0;
+  const crit=filtered.filter(r=>r.Aging==='90+ days').length;
+
+  document.getElementById('kpis').innerHTML=`
+    <div class="kpi"><div class="kpi-label">Missing docs</div><div class="kpi-value">${filtered.length}</div><div class="kpi-sub">${crit} critical</div></div>
+    <div class="kpi"><div class="kpi-label">Total exposure</div><div class="kpi-value" style="color:var(--red)">${fmt(totD)}</div><div class="kpi-sub">debit unreconciled</div></div>
+    <div class="kpi"><div class="kpi-label">Unmatched income</div><div class="kpi-value" style="color:var(--green)">+${fmt(Math.abs(totC))}</div><div class="kpi-sub">credit unreconciled</div></div>
+    <div class="kpi"><div class="kpi-label">Max days open</div><div class="kpi-value" style="color:var(--orange)">${maxD}d</div><div class="kpi-sub">oldest entry</div></div>`;
+
+  document.getElementById('tbody').innerHTML=sorted.map(r=>{
+    const as=r.Amount<0?'color:var(--red)':'color:var(--green)';
+    return`<tr>
+      <td class="mono" style="white-space:nowrap;color:var(--muted2)">${r.Date}</td>
+      <td style="font-size:12px;white-space:nowrap;font-weight:500">${shortJournal(r.Journal)}</td>
+      <td style="font-size:12px;max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted2)" title="${r.Partner}">${r.Partner||'—'}</td>
+      <td class="mono" style="white-space:nowrap;${as}">${fmt(r.Amount)}</td>
+      <td><span class="badge ${r.Dir==='Debit'?'b-debit':'b-credit'}">${r.Dir}</span></td>
+      <td class="mono" style="text-align:center;color:var(--muted2)">${r.Days}</td>
+      <td>${ageBadge(r.Aging)}</td>
+      <td class="label-cell" title="${r.Label}">${r.Label}</td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('tfoot').textContent=`${filtered.length} of ${RAW.length} lines · net ${fmt(totN)}`;
+  updateCharts();
+}
+
+function fmt(n){
+  return(n<0?'-':'')+Math.abs(n).toLocaleString('fr-BE',{minimumFractionDigits:2,maximumFractionDigits:2})+' €';
+}
+function ageBadge(a){
+  const c=a==='90+ days'?'b-critical':a==='31-90 days'?'b-high':a==='8-30 days'?'b-medium':'b-low';
+  return`<span class="badge ${c}">${a}</span>`;
+}
+
+function updateCharts(){
+  const gc='rgba(255,255,255,0.04)',tc='#555';
+  const base={
+    responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{display:false}},
+    scales:{
+      x:{grid:{color:gc},ticks:{color:tc,font:{size:10,family:'DM Mono, monospace'}}},
+      y:{grid:{color:gc},ticks:{color:tc,font:{size:10,family:'DM Mono, monospace'}},beginAtZero:true}
+    }
+  };
+
+  const ab=['90+ days','31-90 days','8-30 days','0-7 days'];
+  const ac=ab.map(b=>filtered.filter(r=>r.Aging===b).length);
+  const journals=[...new Set(RAW.map(r=>r.Journal))].sort();
+  const jl=journals.map(j=>shortJournal(j));
+  const ja=journals.map(j=>Math.abs(filtered.filter(r=>r.Journal===j&&r.Dir==='Debit').reduce((s,r)=>s+r.Amount,0)));
+  const months=[...new Set(RAW.map(r=>r.Month))].sort();
+  const ml=months.map(m=>new Date(m+'-01').toLocaleDateString('en-GB',{month:'short',year:'2-digit'}));
+  const mc=months.map(m=>filtered.filter(r=>r.Month===m).length);
+
+  if(cA)cA.destroy();
+  cA=new Chart(document.getElementById('chart-aging'),{
+    type:'bar',
+    data:{labels:ab,datasets:[{data:ac,backgroundColor:['rgba(201,85,85,0.7)','rgba(201,125,69,0.7)','rgba(74,143,201,0.7)','rgba(74,171,120,0.7)'],borderRadius:4,borderSkipped:false}]},
+    options:{...base,scales:{...base.scales,x:{...base.scales.x,ticks:{color:tc,font:{size:10},maxRotation:0}}}}
+  });
+
+  if(cJ)cJ.destroy();
+  cJ=new Chart(document.getElementById('chart-journal'),{
+    type:'bar',
+    data:{labels:jl,datasets:[{data:ja,backgroundColor:['rgba(212,168,67,0.65)','rgba(74,143,201,0.65)','rgba(74,171,120,0.65)','rgba(201,85,85,0.65)','rgba(201,125,69,0.65)'],borderRadius:4,borderSkipped:false}]},
+    options:{...base,scales:{...base.scales,y:{...base.scales.y,ticks:{color:tc,font:{size:10},callback:v=>v+'€'}}}}
+  });
+
+  if(cM)cM.destroy();
+  cM=new Chart(document.getElementById('chart-month'),{
+    type:'bar',
+    data:{labels:ml,datasets:[{data:mc,backgroundColor:'rgba(212,168,67,0.55)',borderRadius:4,borderSkipped:false}]},
+    options:{...base}
+  });
+}
+
+function show(id){
+  ['auth-screen','loading-screen','dashboard'].forEach(s=>{
+    const el=document.getElementById(s);
+    el.style.display=s===id?(s==='loading-screen'?'flex':'block'):'none';
+  });
+}
+function setLoading(msg){document.getElementById('loading-text').textContent=msg;}
+</script>
+</body>
+</html>
