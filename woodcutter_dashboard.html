@@ -236,12 +236,12 @@ function showAuthError(msg){
 async function loadData(){
   show('loading-screen');setLoading('Finding folder in Google Drive…');
   try{
-    const folderRes=await driveApi(`files?q=name='${FOLDER_NAME}' and mimeType='application/vnd.google-apps.folder' and trashed=false&fields=files(id,name)`);
+    const folderRes=await driveApi(`files?q=name='${FOLDER_NAME}' and mimeType='application/vnd.google-apps.folder' and trashed=false&fields=files(id,name)&supportsAllDrives=true&includeItemsFromAllDrives=true`);
     if(!folderRes.files.length) throw new Error(`Folder "${FOLDER_NAME}" not found`);
     const folderId=folderRes.files[0].id;
 
     setLoading('Finding CSV files…');
-    const csvRes=await driveApi(`files?q='${folderId}' in parents and name contains 'missing_documents' and trashed=false&fields=files(id,name,modifiedTime)&orderBy=name desc`);
+    const csvRes=await driveApi(`files?q='${folderId}' in parents and name contains 'missing_documents' and trashed=false&fields=files(id,name,modifiedTime)&orderBy=name desc&supportsAllDrives=true&includeItemsFromAllDrives=true`);
     if(!csvRes.files.length) throw new Error('No CSV files found');
 
     // Group files by week number extracted from filename
