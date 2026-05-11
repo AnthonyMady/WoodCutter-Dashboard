@@ -4,119 +4,142 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>WoodCutter — Missing Documents</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://apis.google.com/js/api.js"></script>
 <script src="https://accounts.google.com/gsi/client"></script>
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap');
-
 :root {
-  --bg:#0a0a0b;--s1:#111113;--s2:#18181c;
-  --b1:rgba(255,255,255,0.06);--b2:rgba(255,255,255,0.11);--b3:rgba(255,255,255,0.18);
-  --text:#ececec;--muted:#666;--muted2:#888;
-  --gold:#d4a843;--gold2:#f0c96a;--red:#c95555;--green:#4aab78;--blue:#4a8fc9;--orange:#c97d45;
-  --radius:10px;
+  --bg:     #09090b;
+  --s1:     #111115;
+  --s2:     #18181c;
+  --border: #27272a;
+  --border2:#3f3f46;
+  --text:   #fafafa;
+  --muted:  #71717a;
+  --muted2: #a1a1aa;
+  --amber:  #d97706;
+  --amber2: #f59e0b;
+  --red:    #dc2626;
+  --red2:   #ef4444;
+  --green2: #22c55e;
+  --blue2:  #3b82f6;
+  --radius: 8px;
 }
-*{box-sizing:border-box;margin:0;padding:0}
-body{font-family:'Syne',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:14px}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:13px;-webkit-font-smoothing:antialiased}
 
-#auth-screen{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;gap:32px;padding:40px;position:relative;overflow:hidden}
-#auth-screen::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse 60% 50% at 50% 0%,rgba(212,168,67,0.08) 0%,transparent 70%);pointer-events:none;z-index:0}
-#auth-screen>*{position:relative;z-index:1}
-.auth-wordmark{font-size:10px;letter-spacing:0.3em;color:var(--muted2);text-transform:uppercase;font-weight:500}
-.auth-title{font-size:42px;font-weight:700;letter-spacing:-0.03em;line-height:1.1;text-align:center}
-.auth-title span{color:var(--gold)}
-.auth-divider{width:40px;height:1px;background:var(--b3)}
-.auth-sub{font-size:13px;color:var(--muted2);text-align:center;max-width:340px;line-height:1.7;font-family:'DM Mono',monospace}
-.auth-btn{display:flex;align-items:center;gap:10px;background:var(--gold);color:#0a0a0b;border:none;border-radius:8px;padding:14px 32px;font-family:'Syne',sans-serif;font-size:13px;font-weight:700;cursor:pointer;transition:all 0.2s;letter-spacing:0.04em}
-.auth-btn:hover{background:var(--gold2);transform:translateY(-1px)}
-#auth-error{color:var(--red);font-size:12px;display:none;font-family:'DM Mono',monospace}
+/* ── AUTH ────────────────────────────────────────────── */
+#auth-screen{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;gap:22px;padding:40px}
+.auth-logo{display:flex;align-items:center;gap:8px}
+.auth-dot{width:7px;height:7px;border-radius:50%;background:var(--amber)}
+.auth-brand{font-size:11px;font-weight:600;letter-spacing:0.14em;text-transform:uppercase;color:var(--muted2)}
+.auth-heading{font-size:34px;font-weight:700;letter-spacing:-0.025em;text-align:center;line-height:1.15}
+.auth-heading em{font-style:normal;color:var(--amber2)}
+.auth-desc{font-size:13px;color:var(--muted);text-align:center;max-width:320px;line-height:1.65}
+.auth-btn{display:inline-flex;align-items:center;gap:9px;background:var(--text);color:#09090b;border:none;border-radius:var(--radius);padding:10px 22px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;transition:background .15s,transform .1s}
+.auth-btn:hover{background:#e4e4e7;transform:translateY(-1px)}
+#auth-error{font-size:12px;color:var(--red2);display:none}
 
-#loading-screen{display:none;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;gap:20px}
-.spinner{width:28px;height:28px;border:1.5px solid var(--b2);border-top-color:var(--gold);border-radius:50%;animation:spin 0.7s linear infinite}
+/* ── LOADING ─────────────────────────────────────────── */
+#loading-screen{display:none;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;gap:16px}
+.spinner{width:22px;height:22px;border:2px solid var(--border2);border-top-color:var(--amber);border-radius:50%;animation:spin .8s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
-.loading-text{font-size:11px;color:var(--muted);font-family:'DM Mono',monospace;letter-spacing:0.08em}
+.loading-text{font-size:12px;color:var(--muted);letter-spacing:.04em}
 
+/* ── DASHBOARD ───────────────────────────────────────── */
 #dashboard{display:none;min-height:100vh}
 
-header{border-bottom:1px solid var(--b1);padding:0 32px;height:56px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:rgba(10,10,11,0.92);backdrop-filter:blur(12px);z-index:10}
-.hdr-brand{display:flex;align-items:center;gap:12px}
-.hdr-dot{width:7px;height:7px;border-radius:50%;background:var(--gold)}
-.hdr-title{font-size:13px;font-weight:600;letter-spacing:0.04em}
-.hdr-pipe{width:1px;height:16px;background:var(--b2)}
-.hdr-sub{font-size:11px;color:var(--muted);font-family:'DM Mono',monospace;letter-spacing:0.04em}
-.hdr-right{display:flex;align-items:center;gap:14px}
-.last-upd{font-size:11px;color:var(--muted);font-family:'DM Mono',monospace}
-.refresh-btn{background:transparent;border:1px solid var(--b2);color:var(--muted2);border-radius:6px;padding:5px 14px;font-size:11px;font-family:'Syne',sans-serif;font-weight:600;cursor:pointer;transition:all 0.15s;letter-spacing:0.06em;text-transform:uppercase}
-.refresh-btn:hover{border-color:var(--b3);color:var(--text)}
+header{height:52px;padding:0 28px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);background:rgba(9,9,11,.9);backdrop-filter:blur(16px);position:sticky;top:0;z-index:100}
+.hdr-left{display:flex;align-items:center;gap:10px}
+.hdr-dot{width:6px;height:6px;border-radius:50%;background:var(--amber);flex-shrink:0}
+.hdr-title{font-size:13px;font-weight:600;letter-spacing:.02em}
+.hdr-sep{width:1px;height:14px;background:var(--border2)}
+.hdr-sub{font-size:12px;color:var(--muted)}
+.hdr-right{display:flex;align-items:center;gap:10px}
+.hdr-date{font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums}
+.btn-outline{background:transparent;border:1px solid var(--border2);color:var(--muted2);border-radius:6px;padding:5px 13px;font-family:inherit;font-size:11px;font-weight:500;cursor:pointer;transition:all .15s;letter-spacing:.04em}
+.btn-outline:hover{border-color:var(--text);color:var(--text)}
 
-.filters{padding:12px 32px;display:flex;gap:8px;flex-wrap:wrap;border-bottom:1px solid var(--b1);background:var(--s1)}
-.filters input,.filters select{background:var(--s2);border:1px solid var(--b1);color:var(--text);border-radius:6px;padding:6px 12px;font-size:12px;font-family:'DM Mono',monospace;outline:none;transition:border-color 0.15s;-webkit-appearance:none}
-.filters input{width:200px}
+/* ── FILTERS ─────────────────────────────────────────── */
+.filters{padding:10px 28px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;border-bottom:1px solid var(--border);background:var(--s1)}
+.filters input,.filters select{background:var(--s2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:6px 10px;font-family:inherit;font-size:12px;outline:none;transition:border-color .15s;-webkit-appearance:none;appearance:none}
+.filters input{width:210px}
 .filters input::placeholder{color:var(--muted)}
-.filters input:focus,.filters select:focus{border-color:var(--gold)}
+.filters input:focus,.filters select:focus{border-color:var(--amber)}
 .filters select option{background:var(--s2)}
 
-main{padding:24px 32px;max-width:1360px;margin:0 auto}
+main{padding:20px 28px;max-width:1440px;margin:0 auto}
 
-.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:10px}
-.kpi{background:var(--s1);border:1px solid var(--b1);border-radius:var(--radius);padding:18px 20px;position:relative;overflow:hidden;transition:border-color 0.2s}
-.kpi:hover{border-color:var(--b2)}
-.kpi::after{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--b3),transparent)}
-.kpi-label{font-size:10px;color:var(--muted);font-family:'DM Mono',monospace;letter-spacing:0.12em;text-transform:uppercase;margin-bottom:10px}
-.kpi-value{font-size:26px;font-weight:700;letter-spacing:-0.03em;line-height:1}
-.kpi-sub{font-size:10px;color:var(--muted);font-family:'DM Mono',monospace;margin-top:6px}
-.kpi-delta{font-size:11px;font-family:'DM Mono',monospace;margin-top:5px}
-.delta-good{color:var(--green)}.delta-bad{color:var(--red)}.delta-neutral{color:var(--muted)}
+/* ── KPIs ────────────────────────────────────────────── */
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:8px}
+.kpi{background:var(--s1);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px}
+.kpi-label{font-size:11px;font-weight:500;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px}
+.kpi-value{font-size:24px;font-weight:700;letter-spacing:-.02em;line-height:1;font-variant-numeric:tabular-nums}
+.kpi-sub{font-size:11px;color:var(--muted);margin-top:5px}
+.kpi-delta{font-size:11px;margin-top:4px;font-variant-numeric:tabular-nums}
+.delta-good{color:var(--green2)}.delta-bad{color:var(--red2)}.delta-neutral{color:var(--muted)}
 
-.journal-strips{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin-bottom:20px}
-.jstrip{background:var(--s1);border:1px solid var(--b1);border-radius:var(--radius);padding:14px 18px;display:flex;align-items:center;justify-content:space-between}
-.jstrip-name{font-size:11px;font-weight:600;letter-spacing:0.04em}
-.jstrip-val{font-size:14px;font-weight:700;font-family:'DM Mono',monospace}
-.jstrip-count{font-size:10px;color:var(--muted);font-family:'DM Mono',monospace;margin-top:2px;text-align:right}
+/* ── JOURNAL STRIPS ──────────────────────────────────── */
+.journal-strips{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;margin-bottom:16px}
+.jstrip{background:var(--s1);border:1px solid var(--border);border-radius:var(--radius);padding:12px 16px;display:flex;align-items:center;justify-content:space-between}
+.jstrip-name{font-size:12px;font-weight:600}
+.jstrip-count{font-size:11px;color:var(--muted);margin-top:2px}
+.jstrip-val{font-size:13px;font-weight:700;font-variant-numeric:tabular-nums;color:var(--red2)}
+.jstrip-sub{font-size:10px;color:var(--muted);margin-top:2px;text-align:right}
 
-.charts{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
-.chart-card,.chart-card-wide{background:var(--s1);border:1px solid var(--b1);border-radius:var(--radius);padding:20px}
-.chart-card-wide{margin-bottom:20px}
-.chart-title{font-size:10px;color:var(--muted);font-family:'DM Mono',monospace;letter-spacing:0.12em;text-transform:uppercase;margin-bottom:16px}
-.chart-wrap{position:relative;height:180px}
-.chart-wrap-sm{position:relative;height:120px}
+/* ── CHARTS ──────────────────────────────────────────── */
+.charts{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px}
+.chart-card,.chart-card-wide{background:var(--s1);border:1px solid var(--border);border-radius:var(--radius);padding:18px 20px}
+.chart-card-wide{margin-bottom:16px}
+.chart-title{font-size:11px;font-weight:500;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:14px}
+.chart-wrap{position:relative;height:160px}
+.chart-wrap-sm{position:relative;height:110px}
 
-.table-card{background:var(--s1);border:1px solid var(--b1);border-radius:var(--radius);overflow:hidden}
-.table-header{padding:14px 20px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--b1)}
-.table-header-title{font-size:10px;color:var(--muted);font-family:'DM Mono',monospace;letter-spacing:0.12em;text-transform:uppercase}
+/* ── TABLE ───────────────────────────────────────────── */
+.table-card{background:var(--s1);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+.table-header{padding:11px 14px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border)}
+.table-header-title{font-size:11px;font-weight:500;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+.table-actions{display:flex;gap:8px;align-items:center}
+.btn-export{background:var(--amber);color:#09090b;border:none;border-radius:6px;padding:5px 13px;font-family:inherit;font-size:11px;font-weight:600;cursor:pointer;transition:background .15s;letter-spacing:.03em}
+.btn-export:hover{background:var(--amber2)}
+.btn-export:disabled{opacity:.45;cursor:default}
 .table-wrap{overflow-x:auto}
+
 table{width:100%;border-collapse:collapse}
-th{text-align:left;padding:9px 14px;font-size:10px;font-family:'DM Mono',monospace;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--b1);background:var(--s2);white-space:nowrap;cursor:pointer;user-select:none}
+th{text-align:left;padding:8px 12px;font-size:11px;font-weight:500;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--border);background:var(--s2);white-space:nowrap;cursor:pointer;user-select:none}
 th:hover{color:var(--muted2)}
-td{padding:9px 14px;border-bottom:1px solid var(--b1);vertical-align:middle;font-size:12px}
+td{padding:9px 12px;border-bottom:1px solid var(--border);vertical-align:top;font-size:12px}
 tr:last-child td{border-bottom:none}
-tr:hover td{background:rgba(255,255,255,0.015)}
-tr.row-critical td{background:rgba(201,85,85,0.04)}
-tr.row-critical:hover td{background:rgba(201,85,85,0.08)}
+tr:hover td{background:rgba(255,255,255,.02)}
+tr.row-critical td{background:rgba(220,38,38,.03)}
+tr.row-critical:hover td{background:rgba(220,38,38,.06)}
 
-.mono{font-family:'DM Mono',monospace;font-size:11px}
-.label-cell{max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted);font-size:11px;font-family:'DM Mono',monospace}
-.badge{display:inline-flex;align-items:center;font-size:10px;font-family:'DM Mono',monospace;padding:3px 8px;border-radius:4px;font-weight:500;letter-spacing:0.04em;white-space:nowrap}
-.b-critical{background:rgba(201,85,85,0.12);color:#e07070;border:1px solid rgba(201,85,85,0.2)}
-.b-high{background:rgba(201,125,69,0.12);color:#d99060;border:1px solid rgba(201,125,69,0.2)}
-.b-medium{background:rgba(74,143,201,0.12);color:#6aabdb;border:1px solid rgba(74,143,201,0.2)}
-.b-low{background:rgba(74,171,120,0.12);color:#5dcb90;border:1px solid rgba(74,171,120,0.2)}
-.b-debit{background:rgba(201,85,85,0.1);color:#e07070;border:1px solid rgba(201,85,85,0.15)}
-.b-credit{background:rgba(74,171,120,0.1);color:#5dcb90;border:1px solid rgba(74,171,120,0.15)}
+.mono{font-variant-numeric:tabular-nums;font-size:11px}
+.label-cell{max-width:300px;word-break:break-word;white-space:normal;color:var(--muted2);font-size:11px;line-height:1.55}
+.badge{display:inline-flex;align-items:center;font-size:10px;font-weight:500;padding:2px 7px;border-radius:4px;letter-spacing:.03em;white-space:nowrap}
+.b-critical{background:rgba(220,38,38,.1);color:#f87171;border:1px solid rgba(220,38,38,.2)}
+.b-high{background:rgba(217,119,6,.1);color:#fbbf24;border:1px solid rgba(217,119,6,.2)}
+.b-medium{background:rgba(37,99,235,.1);color:#60a5fa;border:1px solid rgba(37,99,235,.2)}
+.b-low{background:rgba(22,163,74,.1);color:#4ade80;border:1px solid rgba(22,163,74,.2)}
+.b-debit{background:rgba(220,38,38,.08);color:#f87171;border:1px solid rgba(220,38,38,.15)}
+.b-credit{background:rgba(22,163,74,.08);color:#4ade80;border:1px solid rgba(22,163,74,.15)}
 
-.table-footer{padding:10px 14px;font-size:11px;color:var(--muted);font-family:'DM Mono',monospace;border-top:1px solid var(--b1);background:var(--s2)}
-.sort-icon{font-size:9px;margin-left:4px;opacity:0.5}
-.error-box{background:rgba(201,85,85,0.08);border:1px solid rgba(201,85,85,0.25);border-radius:var(--radius);padding:16px 20px;color:#e07070;font-size:12px;margin:32px;font-family:'DM Mono',monospace}
-.section-label{font-size:10px;color:var(--muted);font-family:'DM Mono',monospace;letter-spacing:0.12em;text-transform:uppercase;margin-bottom:8px}
+.sort-icon{font-size:9px;margin-left:3px;opacity:.5}
+.table-footer{padding:8px 12px;font-size:11px;color:var(--muted);border-top:1px solid var(--border);background:var(--s2);font-variant-numeric:tabular-nums}
+.error-box{background:rgba(220,38,38,.06);border:1px solid rgba(220,38,38,.2);border-radius:var(--radius);padding:14px 18px;color:#f87171;font-size:12px;margin:28px}
 </style>
 </head>
 <body>
 
+<!-- AUTH -->
 <div id="auth-screen">
-  <div class="auth-wordmark">WoodCutter</div>
-  <div class="auth-title">Missing<br><span>Documents</span></div>
-  <div class="auth-divider"></div>
-  <div class="auth-sub">Connects to your Google Drive and loads the latest Odoo accounting CSV exports automatically.</div>
+  <div class="auth-logo">
+    <div class="auth-dot"></div>
+    <div class="auth-brand">WoodCutter</div>
+  </div>
+  <div class="auth-heading">Missing<br><em>Documents</em></div>
+  <div class="auth-desc">Connects to your Google Drive and loads the latest Odoo accounting CSV exports automatically.</div>
   <button class="auth-btn" onclick="signIn()">
     <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
     Sign in with Google
@@ -124,22 +147,24 @@ tr.row-critical:hover td{background:rgba(201,85,85,0.08)}
   <div id="auth-error"></div>
 </div>
 
+<!-- LOADING -->
 <div id="loading-screen">
   <div class="spinner"></div>
-  <div class="loading-text" id="loading-text">Connecting to Google Drive...</div>
+  <div class="loading-text" id="loading-text">Connecting to Google Drive…</div>
 </div>
 
+<!-- DASHBOARD -->
 <div id="dashboard">
   <header>
-    <div class="hdr-brand">
+    <div class="hdr-left">
       <div class="hdr-dot"></div>
       <div class="hdr-title">WOODCUTTER</div>
-      <div class="hdr-pipe"></div>
-      <div class="hdr-sub" id="header-sub">Loading...</div>
+      <div class="hdr-sep"></div>
+      <div class="hdr-sub" id="header-sub">Loading…</div>
     </div>
     <div class="hdr-right">
-      <div class="last-upd" id="last-updated"></div>
-      <button class="refresh-btn" onclick="loadData()">↻ Refresh</button>
+      <div class="hdr-date" id="last-updated"></div>
+      <button class="btn-outline" onclick="loadData()">↻ Refresh</button>
     </div>
   </header>
 
@@ -181,6 +206,9 @@ tr.row-critical:hover td{background:rgba(201,85,85,0.08)}
     <div class="table-card">
       <div class="table-header">
         <div class="table-header-title">Transactions</div>
+        <div class="table-actions">
+          <button class="btn-export" id="export-btn" onclick="exportCSV()">↓ Export CSV</button>
+        </div>
       </div>
       <div class="table-wrap">
         <table>
@@ -204,225 +232,242 @@ tr.row-critical:hover td{background:rgba(201,85,85,0.08)}
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <script>
-const CLIENT_ID='1022326121984-6kvtq4tld6i3gtqq109oo83dj066o70b.apps.googleusercontent.com';
-const FOLDER_NAME='Automated Odoo accounting CSV';
-const SCOPES='https://www.googleapis.com/auth/drive.readonly';
+const CLIENT_ID   = '1022326121984-6kvtq4tld6i3gtqq109oo83dj066o70b.apps.googleusercontent.com';
+const FOLDER_NAME = 'Automated Odoo accounting CSV';
+const SCOPES      = 'https://www.googleapis.com/auth/drive.readonly';
 
-let tokenClient,accessToken;
-let RAW=[],filtered=[];
-let PREV_RAW=[];      // previous week's data for delta KPIs
-let WEEKLY={};        // {week: count} for trend chart
-let sortCol='Days',sortAsc=false;
-let cA,cJ,cT;
+let tokenClient, accessToken;
+let RAW = [], PREV_RAW = [];
+let filtered = [], filteredPrev = [];
+let WEEKLY = {};
+let sortCol = 'Days', sortAsc = false;
+let cA, cJ, cT;
 
-// ── AUTH ──────────────────────────────────────────────
-function signIn(){
-  tokenClient=google.accounts.oauth2.initTokenClient({
-    client_id:CLIENT_ID,scope:SCOPES,
-    callback:async(resp)=>{
-      if(resp.error){showAuthError(resp.error);return;}
-      accessToken=resp.access_token;
+// ── AUTH ───────────────────────────────────────────────
+function signIn() {
+  tokenClient = google.accounts.oauth2.initTokenClient({
+    client_id: CLIENT_ID, scope: SCOPES,
+    callback: async (resp) => {
+      if (resp.error) { showAuthError(resp.error); return; }
+      accessToken = resp.access_token;
       await loadData();
     }
   });
   tokenClient.requestAccessToken();
 }
-function showAuthError(msg){
-  const el=document.getElementById('auth-error');
-  el.textContent='Error: '+msg;el.style.display='block';
+function showAuthError(msg) {
+  const el = document.getElementById('auth-error');
+  el.textContent = 'Error: ' + msg;
+  el.style.display = 'block';
 }
 
-// ── LOAD DATA ─────────────────────────────────────────
-async function loadData(){
-  show('loading-screen');setLoading('Finding folder in Google Drive…');
-  try{
-    const folderRes=await driveApi(`files?q=name='${FOLDER_NAME}' and mimeType='application/vnd.google-apps.folder' and trashed=false&fields=files(id,name)&supportsAllDrives=true&includeItemsFromAllDrives=true`);
-    if(!folderRes.files.length) throw new Error(`Folder "${FOLDER_NAME}" not found`);
-    const folderId=folderRes.files[0].id;
+// ── LOAD DATA ──────────────────────────────────────────
+async function loadData() {
+  show('loading-screen'); setLoading('Finding folder in Google Drive…');
+  try {
+    const folderRes = await driveApi(`files?q=name='${FOLDER_NAME}' and mimeType='application/vnd.google-apps.folder' and trashed=false&fields=files(id,name)&supportsAllDrives=true&includeItemsFromAllDrives=true`);
+    if (!folderRes.files.length) throw new Error(`Folder "${FOLDER_NAME}" not found`);
+    const folderId = folderRes.files[0].id;
 
     setLoading('Finding CSV files…');
-    const csvRes=await driveApi(`files?q='${folderId}' in parents and name contains 'missing_documents' and trashed=false&fields=files(id,name,modifiedTime)&orderBy=name desc&supportsAllDrives=true&includeItemsFromAllDrives=true`);
-    if(!csvRes.files.length) throw new Error('No CSV files found');
+    const csvRes = await driveApi(`files?q='${folderId}' in parents and name contains 'missing_documents' and trashed=false&fields=files(id,name,modifiedTime)&orderBy=name desc&supportsAllDrives=true&includeItemsFromAllDrives=true`);
+    if (!csvRes.files.length) throw new Error('No CSV files found');
 
-    // Group files by week number extracted from filename
-    const byWeek={};
-    csvRes.files.forEach(f=>{
-      const m=f.name.match(/_W(\d+)_/);
-      const wk=m?parseInt(m[1]):0;
-      if(!byWeek[wk]) byWeek[wk]=[];
+    const byWeek = {};
+    csvRes.files.forEach(f => {
+      const m = f.name.match(/_W(\d+)_/) || f.name.match(/week(\d+)/i);
+      const wk = m ? parseInt(m[1]) : 0;
+      if (!byWeek[wk]) byWeek[wk] = [];
       byWeek[wk].push(f);
     });
 
-    const weeks=Object.keys(byWeek).map(Number).sort((a,b)=>b-a);
-    const latestWeek=weeks[0];
-    const prevWeek=weeks[1]||null;
+    const weeks = Object.keys(byWeek).map(Number).sort((a, b) => b - a);
+    const latestWeek = weeks[0];
+    const prevWeek   = weeks[1] || null;
 
-    // Build weekly trend data (count per week across all journals)
-    WEEKLY={};
+    WEEKLY = {};
     setLoading(`Loading ${csvRes.files.length} file(s) across ${weeks.length} week(s)…`);
 
-    // Parse all files grouped by week
-    const weeklyRows={};
-    for(const wk of weeks){
-      weeklyRows[wk]=[];
-      for(const file of byWeek[wk]){
-        const content=await driveDownload(file.id);
-        weeklyRows[wk]=weeklyRows[wk].concat(parseCSV(content,file.name));
+    const weeklyRows = {};
+    for (const wk of weeks) {
+      weeklyRows[wk] = [];
+      for (const file of byWeek[wk]) {
+        const content = await driveDownload(file.id);
+        weeklyRows[wk] = weeklyRows[wk].concat(parseCSV(content));
       }
-      // Deduplicate within week
-      const seen=new Set();
-      weeklyRows[wk]=weeklyRows[wk].filter(r=>{
-        if(seen.has(r.ExternalID))return false;
-        seen.add(r.ExternalID);return true;
+      // deduplicate by ExternalID within the week
+      const seen = new Set();
+      weeklyRows[wk] = weeklyRows[wk].filter(r => {
+        if (seen.has(r.ExternalID)) return false;
+        seen.add(r.ExternalID); return true;
       });
-      WEEKLY[wk]=weeklyRows[wk].length;
+      WEEKLY[wk] = weeklyRows[wk].length;
     }
 
-    RAW=weeklyRows[latestWeek]||[];
-    PREV_RAW=prevWeek!==null?(weeklyRows[prevWeek]||[]):[];
-    RAW.sort((a,b)=>b.Days-a.Days);
+    RAW      = weeklyRows[latestWeek] || [];
+    PREV_RAW = prevWeek !== null ? (weeklyRows[prevWeek] || []) : [];
+    RAW.sort((a, b) => b.Days - a.Days);
 
-    const latest=byWeek[latestWeek][0].modifiedTime;
-    document.getElementById('last-updated').textContent='Week '+latestWeek+' · '+new Date(latest).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});
-    document.getElementById('header-sub').textContent=`${RAW.length} unreconciled · W${latestWeek}${prevWeek?` · vs W${prevWeek}`:''}`;
+    const latest = byWeek[latestWeek][0].modifiedTime;
+    document.getElementById('last-updated').textContent =
+      'Week ' + latestWeek + ' · ' + new Date(latest).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+    document.getElementById('header-sub').textContent =
+      `${RAW.length} unreconciled · W${latestWeek}` + (prevWeek ? ` · vs W${prevWeek}` : '');
 
-    populateFilters();show('dashboard');applyFilters();
-  }catch(e){
+    populateFilters();
     show('dashboard');
-    document.querySelector('main').innerHTML=`<div class="error-box">⚠ ${e.message}</div>`;
+    applyFilters();
+  } catch (e) {
+    show('dashboard');
+    document.querySelector('main').innerHTML = `<div class="error-box">⚠ ${e.message}</div>`;
   }
 }
 
-// ── DRIVE ─────────────────────────────────────────────
-async function driveApi(path){
-  const res=await fetch(`https://www.googleapis.com/drive/v3/${path}`,{headers:{Authorization:`Bearer ${accessToken}`}});
+// ── DRIVE ──────────────────────────────────────────────
+async function driveApi(path) {
+  const res = await fetch(`https://www.googleapis.com/drive/v3/${path}`, { headers: { Authorization: `Bearer ${accessToken}` } });
   return res.json();
 }
-async function driveDownload(fileId){
-  const res=await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,{headers:{Authorization:`Bearer ${accessToken}`}});
+async function driveDownload(fileId) {
+  const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, { headers: { Authorization: `Bearer ${accessToken}` } });
   return res.text();
 }
 
-// ── CSV ───────────────────────────────────────────────
-function parseCSV(content,filename){
-  const lines=content.trim().split('\n');
-  if(lines.length<2)return[];
-  const delim=lines[0].includes(';')?';':',';
-  const headers=parseLine(lines[0],delim);
-  const rows=[];
-  for(let i=1;i<lines.length;i++){
-    const vals=parseLine(lines[i],delim);
-    if(vals.length<3)continue;
-    const obj={};
-    headers.forEach((h,idx)=>{obj[h.trim()]=(vals[idx]||'').trim();});
-    const amount=parseFloat(obj['Amount'])||0;
-    const days=parseInt(obj['Days Unreconciled'])||0;
+// ── CSV PARSE ──────────────────────────────────────────
+function parseCSV(content) {
+  const lines = content.trim().split('\n');
+  if (lines.length < 2) return [];
+  const delim = lines[0].includes(';') ? ';' : ',';
+  const headers = parseLine(lines[0], delim);
+  const rows = [];
+  for (let i = 1; i < lines.length; i++) {
+    const vals = parseLine(lines[i], delim);
+    if (vals.length < 3) continue;
+    const obj = {};
+    headers.forEach((h, idx) => { obj[h.trim()] = (vals[idx] || '').trim(); });
+    const amount = parseFloat(obj['Amount']) || 0;
+    const days   = parseInt(obj['Days Unreconciled']) || 0;
     rows.push({
-      Date:obj['Date']||'',
-      Month:obj['Month']||(obj['Date']||'').substring(0,7),
-      Journal:(obj['Journal']||'').trim(),
-      Partner:obj['Partner']||'',
-      Label:(obj['Label']||'').replace(/\s+/g,' ').trim(),
-      Amount:amount,
-      Dir:obj['Debit/Credit']||(amount<0?'Debit':'Credit'),
-      Days:days,
-      Aging:obj['Aging Bucket']||classifyAging(days),
-      ExternalID:obj['External ID']||(obj['Date']+obj['Amount']+obj['Label']||'').substring(0,40),
+      Date:       obj['Date'] || '',
+      Month:      obj['Month'] || (obj['Date'] || '').substring(0, 7),
+      Journal:    (obj['Journal'] || '').trim(),
+      Partner:    obj['Partner'] || '',
+      Label:      (obj['Label'] || '').replace(/\s+/g, ' ').trim(),
+      Amount:     amount,
+      Dir:        obj['Debit/Credit'] || (amount < 0 ? 'Debit' : 'Credit'),
+      Days:       days,
+      Aging:      obj['Aging Bucket'] || classifyAging(days),
+      ExternalID: obj['External ID'] || (obj['Date'] + obj['Amount'] + (obj['Label'] || '')).substring(0, 40),
     });
   }
   return rows;
 }
-function parseLine(line,delim){
-  const result=[];let cur='',inQ=false;
-  for(let i=0;i<line.length;i++){
-    const c=line[i];
-    if(c==='"'){inQ=!inQ;continue;}
-    if(c===delim&&!inQ){result.push(cur);cur='';continue;}
-    cur+=c;
+function parseLine(line, delim) {
+  const result = []; let cur = '', inQ = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (c === '"') { inQ = !inQ; continue; }
+    if (c === delim && !inQ) { result.push(cur); cur = ''; continue; }
+    cur += c;
   }
-  result.push(cur);return result;
+  result.push(cur); return result;
 }
-function classifyAging(d){
-  if(d>90)return'90+ days';if(d>30)return'31-90 days';if(d>7)return'8-30 days';return'0-7 days';
+function classifyAging(d) {
+  if (d > 90) return '90+ days'; if (d > 30) return '31-90 days'; if (d > 7) return '8-30 days'; return '0-7 days';
 }
 
-// ── FILTERS ───────────────────────────────────────────
-function populateFilters(){
-  const journals=[...new Set(RAW.map(r=>r.Journal))].sort();
-  const months=[...new Set(RAW.map(r=>r.Month))].sort();
-  const jSel=document.getElementById('f-journal');
-  jSel.innerHTML='<option value="">All journals</option>';
-  journals.forEach(j=>{const o=document.createElement('option');o.value=j;o.textContent=shortJournal(j);jSel.appendChild(o);});
-  const mSel=document.getElementById('f-month');
-  mSel.innerHTML='<option value="">All months</option>';
-  months.forEach(m=>{const o=document.createElement('option');o.value=m;o.textContent=new Date(m+'-01').toLocaleDateString('en-GB',{month:'long',year:'numeric'});mSel.appendChild(o);});
+// ── FILTERS ────────────────────────────────────────────
+function populateFilters() {
+  const journals = [...new Set(RAW.map(r => r.Journal))].sort();
+  const months   = [...new Set(RAW.map(r => r.Month))].sort();
+  const jSel = document.getElementById('f-journal');
+  jSel.innerHTML = '<option value="">All journals</option>';
+  journals.forEach(j => { const o = document.createElement('option'); o.value = j; o.textContent = shortJournal(j); jSel.appendChild(o); });
+  const mSel = document.getElementById('f-month');
+  mSel.innerHTML = '<option value="">All months</option>';
+  months.forEach(m => { const o = document.createElement('option'); o.value = m; o.textContent = new Date(m + '-01').toLocaleDateString('en-GB', { month: 'long', year: 'numeric' }); mSel.appendChild(o); });
 }
-function shortJournal(j){
-  if(j.includes('BRUSSELS')||j.includes('Brussels'))return'Brussels';
-  if(j.includes('ANTWERP')||j.includes('Antwerp'))return'Antwerp';
-  return j;
+
+function getFilterFn() {
+  const s = document.getElementById('search').value.toLowerCase().trim();
+  const j = document.getElementById('f-journal').value;
+  const m = document.getElementById('f-month').value;
+  const a = document.getElementById('f-aging').value;
+  const d = document.getElementById('f-dir').value;
+  return r =>
+    (!s || r.Label.toLowerCase().includes(s) || r.Partner.toLowerCase().includes(s)) &&
+    (!j || r.Journal === j) &&
+    (!m || r.Month === m) &&
+    (!a || r.Aging === a) &&
+    (!d || r.Dir === d);
 }
-function applyFilters(){
-  const s=document.getElementById('search').value.toLowerCase();
-  const j=document.getElementById('f-journal').value;
-  const m=document.getElementById('f-month').value;
-  const a=document.getElementById('f-aging').value;
-  const d=document.getElementById('f-dir').value;
-  filtered=RAW.filter(r=>
-    (!s||r.Label.toLowerCase().includes(s)||r.Partner.toLowerCase().includes(s))&&
-    (!j||r.Journal===j)&&(!m||r.Month===m)&&(!a||r.Aging===a)&&(!d||r.Dir===d)
-  );
+
+function applyFilters() {
+  const fn = getFilterFn();
+  filtered     = RAW.filter(fn);
+  filteredPrev = PREV_RAW.filter(fn);  // apply same criteria to previous week
   renderAll();
 }
 
-// ── SORT ──────────────────────────────────────────────
-function sortBy(col){
-  sortAsc=sortCol===col?!sortAsc:col!=='Days';sortCol=col;renderAll();
+function shortJournal(j) {
+  if (j.includes('BRUSSELS') || j.includes('Brussels')) return 'Brussels';
+  if (j.includes('ANTWERP')  || j.includes('Antwerp'))  return 'Antwerp';
+  if (j.includes('CUTTING')  || j.includes('Cutting'))  return 'Cutting';
+  return j;
 }
 
-// ── RENDER ────────────────────────────────────────────
-function renderAll(){
-  const sorted=[...filtered].sort((a,b)=>{
-    let av=a[sortCol],bv=b[sortCol];
-    if(typeof av==='string'){av=av.toLowerCase();bv=bv.toLowerCase();}
-    return sortAsc?(av>bv?1:-1):(av<bv?1:-1);
+// ── SORT ───────────────────────────────────────────────
+function sortBy(col) {
+  sortAsc = sortCol === col ? !sortAsc : col !== 'Days';
+  sortCol = col;
+  renderAll();
+}
+
+// ── RENDER ─────────────────────────────────────────────
+function renderAll() {
+  const sorted = [...filtered].sort((a, b) => {
+    let av = a[sortCol], bv = b[sortCol];
+    if (typeof av === 'string') { av = av.toLowerCase(); bv = bv.toLowerCase(); }
+    return sortAsc ? (av > bv ? 1 : -1) : (av < bv ? 1 : -1);
   });
 
-  document.querySelectorAll('.sort-icon').forEach(e=>e.textContent='');
-  const si=document.getElementById('si-'+sortCol);
-  if(si)si.textContent=sortAsc?'▲':'▼';
+  document.querySelectorAll('.sort-icon').forEach(e => e.textContent = '');
+  const si = document.getElementById('si-' + sortCol);
+  if (si) si.textContent = sortAsc ? '▲' : '▼';
 
-  // ── KPI calculations ──
-  const totD=filtered.filter(r=>r.Dir==='Debit').reduce((s,r)=>s+r.Amount,0);
-  const totC=filtered.filter(r=>r.Dir==='Credit').reduce((s,r)=>s+r.Amount,0);
-  const totN=filtered.reduce((s,r)=>s+r.Amount,0);
-  const crit=filtered.filter(r=>r.Aging==='90+ days').length;
-  const avgDays=filtered.length?Math.round(filtered.reduce((s,r)=>s+r.Days,0)/filtered.length):0;
+  // ── KPI calculations (all based on filtered / filteredPrev) ──
+  const totD   = filtered.filter(r => r.Dir === 'Debit').reduce((s, r) => s + r.Amount, 0);
+  const totC   = filtered.filter(r => r.Dir === 'Credit').reduce((s, r) => s + r.Amount, 0);
+  const totN   = filtered.reduce((s, r) => s + r.Amount, 0);
+  const crit   = filtered.filter(r => r.Aging === '90+ days').length;
+  const avgDays = filtered.length ? Math.round(filtered.reduce((s, r) => s + r.Days, 0) / filtered.length) : 0;
 
-  // Week-over-week delta
-  const prevCount=PREV_RAW.length;
-  const currCount=RAW.length;
-  let deltaHTML='<span class="delta-neutral">no prior week</span>';
-  if(prevCount>0){
-    const diff=currCount-prevCount;
-    const resolved=PREV_RAW.filter(p=>!RAW.find(r=>r.ExternalID===p.ExternalID)).length;
-    const added=RAW.filter(r=>!PREV_RAW.find(p=>p.ExternalID===r.ExternalID)).length;
-    if(diff<0) deltaHTML=`<span class="delta-good">▼ ${Math.abs(diff)} resolved</span>`;
-    else if(diff>0) deltaHTML=`<span class="delta-bad">▲ ${diff} new</span>`;
-    else deltaHTML=`<span class="delta-neutral">= no change</span>`;
+  // Week-over-week count delta (filtered vs filteredPrev)
+  const currCount = filtered.length;
+  const prevCount = filteredPrev.length;
+  let deltaHTML = '<span class="delta-neutral">no prior week data</span>';
+  if (PREV_RAW.length > 0) {
+    if (prevCount === 0 && currCount === 0) {
+      deltaHTML = '<span class="delta-neutral">— none in either week</span>';
+    } else {
+      const diff = currCount - prevCount;
+      if (diff < 0)      deltaHTML = `<span class="delta-good">▼ ${Math.abs(diff)} fewer than last week</span>`;
+      else if (diff > 0) deltaHTML = `<span class="delta-bad">▲ ${diff} more than last week</span>`;
+      else               deltaHTML = `<span class="delta-neutral">= same as last week (${currCount})</span>`;
+    }
   }
 
-  // Avg days delta
-  const prevAvg=PREV_RAW.length?Math.round(PREV_RAW.reduce((s,r)=>s+r.Days,0)/PREV_RAW.length):null;
-  let avgDeltaHTML='';
-  if(prevAvg!==null){
-    const d=avgDays-prevAvg;
-    if(d<0) avgDeltaHTML=`<span class="delta-good">▼ ${Math.abs(d)}d vs last week</span>`;
-    else if(d>0) avgDeltaHTML=`<span class="delta-bad">▲ ${d}d vs last week</span>`;
-    else avgDeltaHTML=`<span class="delta-neutral">= same as last week</span>`;
+  // Avg days delta (filtered vs filteredPrev)
+  const prevAvg = filteredPrev.length ? Math.round(filteredPrev.reduce((s, r) => s + r.Days, 0) / filteredPrev.length) : null;
+  let avgDeltaHTML = '';
+  if (prevAvg !== null) {
+    const d = avgDays - prevAvg;
+    if (d < 0)      avgDeltaHTML = `<span class="delta-good">▼ ${Math.abs(d)}d vs last week</span>`;
+    else if (d > 0) avgDeltaHTML = `<span class="delta-bad">▲ ${d}d vs last week</span>`;
+    else            avgDeltaHTML = `<span class="delta-neutral">= same as last week</span>`;
   }
 
-  document.getElementById('kpis').innerHTML=`
+  document.getElementById('kpis').innerHTML = `
     <div class="kpi">
       <div class="kpi-label">Missing docs</div>
       <div class="kpi-value">${filtered.length}</div>
@@ -431,115 +476,157 @@ function renderAll(){
     </div>
     <div class="kpi">
       <div class="kpi-label">Total exposure</div>
-      <div class="kpi-value" style="color:var(--red)">${fmt(totD)}</div>
+      <div class="kpi-value" style="color:var(--red2)">${fmt(totD)}</div>
       <div class="kpi-sub">debit unreconciled</div>
     </div>
     <div class="kpi">
       <div class="kpi-label">Unmatched income</div>
-      <div class="kpi-value" style="color:var(--green)">+${fmt(Math.abs(totC))}</div>
+      <div class="kpi-value" style="color:var(--green2)">+${fmt(Math.abs(totC))}</div>
       <div class="kpi-sub">credit unreconciled</div>
     </div>
     <div class="kpi">
       <div class="kpi-label">Avg days open</div>
-      <div class="kpi-value" style="color:var(--orange)">${avgDays}d</div>
+      <div class="kpi-value" style="color:var(--amber2)">${avgDays}d</div>
       <div class="kpi-delta">${avgDeltaHTML}</div>
     </div>`;
 
-  // ── Per-journal strips ──
-  const journals=[...new Set(RAW.map(r=>r.Journal))].sort();
-  const jColors={'Brussels':'var(--gold)','Antwerp':'var(--blue)'};
-  document.getElementById('journal-strips').innerHTML=journals.map(j=>{
-    const jRows=filtered.filter(r=>r.Journal===j);
-    const jExp=Math.abs(jRows.filter(r=>r.Dir==='Debit').reduce((s,r)=>s+r.Amount,0));
-    const name=shortJournal(j);
-    const col=jColors[name]||'var(--muted2)';
-    return`<div class="jstrip">
-      <div><div class="jstrip-name" style="color:${col}">${name}</div><div class="kpi-sub" style="margin-top:4px">${jRows.length} lines</div></div>
-      <div><div class="jstrip-val" style="color:var(--red)">${fmt(jExp)}</div><div class="jstrip-count">debit exposure</div></div>
+  // ── Journal strips ──
+  const journals = [...new Set(RAW.map(r => r.Journal))].sort();
+  const jColMap  = { 'Brussels': 'var(--amber2)', 'Antwerp': 'var(--blue2)', 'Cutting': 'var(--green2)' };
+  document.getElementById('journal-strips').innerHTML = journals.map(j => {
+    const jRows = filtered.filter(r => r.Journal === j);
+    const jExp  = Math.abs(jRows.filter(r => r.Dir === 'Debit').reduce((s, r) => s + r.Amount, 0));
+    const name  = shortJournal(j);
+    const col   = jColMap[name] || 'var(--muted2)';
+    return `<div class="jstrip">
+      <div>
+        <div class="jstrip-name" style="color:${col}">${name}</div>
+        <div class="jstrip-count">${jRows.length} line${jRows.length !== 1 ? 's' : ''}</div>
+      </div>
+      <div style="text-align:right">
+        <div class="jstrip-val">${fmt(jExp)}</div>
+        <div class="jstrip-sub">debit exposure</div>
+      </div>
     </div>`;
   }).join('');
 
   // ── Table ──
-  document.getElementById('tbody').innerHTML=sorted.map(r=>{
-    const as=r.Amount<0?'color:var(--red)':'color:var(--green)';
-    const rowCls=r.Aging==='90+ days'?'row-critical':'';
-    return`<tr class="${rowCls}">
+  document.getElementById('tbody').innerHTML = sorted.map(r => {
+    const amtStyle = r.Amount < 0 ? 'color:var(--red2)' : 'color:var(--green2)';
+    const rowCls   = r.Aging === '90+ days' ? 'row-critical' : '';
+    return `<tr class="${rowCls}">
       <td class="mono" style="white-space:nowrap;color:var(--muted2)">${r.Date}</td>
-      <td style="font-size:12px;white-space:nowrap;font-weight:500">${shortJournal(r.Journal)}</td>
-      <td style="font-size:12px;max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted2)" title="${r.Partner}">${r.Partner||'—'}</td>
-      <td class="mono" style="white-space:nowrap;${as}">${fmt(r.Amount)}</td>
-      <td><span class="badge ${r.Dir==='Debit'?'b-debit':'b-credit'}">${r.Dir}</span></td>
+      <td style="white-space:nowrap;font-weight:500">${shortJournal(r.Journal)}</td>
+      <td style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted2)" title="${esc(r.Partner)}">${r.Partner || '—'}</td>
+      <td class="mono" style="white-space:nowrap;${amtStyle}">${fmt(r.Amount)}</td>
+      <td><span class="badge ${r.Dir === 'Debit' ? 'b-debit' : 'b-credit'}">${r.Dir}</span></td>
       <td class="mono" style="text-align:center;color:var(--muted2)">${r.Days}</td>
       <td>${ageBadge(r.Aging)}</td>
-      <td class="label-cell" title="${r.Label}">${r.Label}</td>
+      <td class="label-cell">${esc(r.Label) || '—'}</td>
     </tr>`;
   }).join('');
 
-  document.getElementById('tfoot').textContent=`${filtered.length} of ${RAW.length} lines · net ${fmt(totN)}`;
+  const exportBtn = document.getElementById('export-btn');
+  exportBtn.disabled = filtered.length === 0;
+
+  document.getElementById('tfoot').textContent =
+    `${filtered.length} of ${RAW.length} transactions shown · net ${fmt(totN)}` +
+    (filteredPrev.length > 0 ? ` · ${filteredPrev.length} in prior week` : '');
+
   updateCharts();
 }
 
-function fmt(n){
-  return(n<0?'-':'')+Math.abs(n).toLocaleString('fr-BE',{minimumFractionDigits:2,maximumFractionDigits:2})+' €';
+// ── EXPORT ─────────────────────────────────────────────
+function exportCSV() {
+  const cols = ['Date', 'Month', 'Journal', 'Partner', 'Label', 'Amount', 'Dir', 'Days', 'Aging', 'ExternalID'];
+  const headers = ['Date', 'Month', 'Journal', 'Partner', 'Label', 'Amount', 'Debit/Credit', 'Days Unreconciled', 'Aging Bucket', 'External ID'];
+
+  const rows = [headers.map(csvCell).join(';')];
+  filtered.forEach(r => {
+    rows.push(cols.map(k => csvCell(r[k])).join(';'));
+  });
+
+  // UTF-8 BOM so Excel opens it correctly
+  const blob = new Blob(['﻿' + rows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  const s    = document.getElementById('search').value.trim();
+  const week = document.getElementById('last-updated').textContent.match(/Week (\d+)/)?.[1] || '';
+  a.href     = url;
+  a.download = `missing_docs${s ? '_' + s.replace(/\s+/g, '_') : ''}_W${week}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
 }
-function ageBadge(a){
-  const c=a==='90+ days'?'b-critical':a==='31-90 days'?'b-high':a==='8-30 days'?'b-medium':'b-low';
-  return`<span class="badge ${c}">${a}</span>`;
+function csvCell(v) {
+  if (v === null || v === undefined) v = '';
+  v = String(v).replace(/"/g, '""');
+  return '"' + v + '"';
 }
 
-// ── CHARTS ────────────────────────────────────────────
-function updateCharts(){
-  const gc='rgba(255,255,255,0.04)',tc='#555';
-  const base={
-    responsive:true,maintainAspectRatio:false,
-    plugins:{legend:{display:false}},
-    scales:{
-      x:{grid:{color:gc},ticks:{color:tc,font:{size:10,family:'DM Mono, monospace'}}},
-      y:{grid:{color:gc},ticks:{color:tc,font:{size:10,family:'DM Mono, monospace'}},beginAtZero:true}
+// ── CHARTS ─────────────────────────────────────────────
+function updateCharts() {
+  const gc = 'rgba(255,255,255,.04)', tc = '#52525b';
+  const baseOpts = {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { grid: { color: gc }, ticks: { color: tc, font: { size: 10, family: 'Inter,sans-serif' } } },
+      y: { grid: { color: gc }, ticks: { color: tc, font: { size: 10, family: 'Inter,sans-serif' } }, beginAtZero: true }
     }
   };
 
   // Aging
-  const ab=['90+ days','31-90 days','8-30 days','0-7 days'];
-  const ac=ab.map(b=>filtered.filter(r=>r.Aging===b).length);
-  if(cA)cA.destroy();
-  cA=new Chart(document.getElementById('chart-aging'),{
-    type:'bar',
-    data:{labels:ab,datasets:[{data:ac,backgroundColor:['rgba(201,85,85,0.7)','rgba(201,125,69,0.7)','rgba(74,143,201,0.7)','rgba(74,171,120,0.7)'],borderRadius:4,borderSkipped:false}]},
-    options:{...base,scales:{...base.scales,x:{...base.scales.x,ticks:{color:tc,font:{size:10},maxRotation:0}}}}
+  const ab = ['90+ days', '31-90 days', '8-30 days', '0-7 days'];
+  const ac = ab.map(b => filtered.filter(r => r.Aging === b).length);
+  if (cA) cA.destroy();
+  cA = new Chart(document.getElementById('chart-aging'), {
+    type: 'bar',
+    data: { labels: ab, datasets: [{ data: ac, backgroundColor: ['rgba(220,38,38,.65)', 'rgba(217,119,6,.65)', 'rgba(37,99,235,.65)', 'rgba(22,163,74,.65)'], borderRadius: 4, borderSkipped: false }] },
+    options: { ...baseOpts, scales: { ...baseOpts.scales, x: { ...baseOpts.scales.x, ticks: { color: tc, font: { size: 10 }, maxRotation: 0 } } } }
   });
 
   // Journal exposure
-  const journals=[...new Set(RAW.map(r=>r.Journal))].sort();
-  const jl=journals.map(j=>shortJournal(j));
-  const ja=journals.map(j=>Math.abs(filtered.filter(r=>r.Journal===j&&r.Dir==='Debit').reduce((s,r)=>s+r.Amount,0)));
-  if(cJ)cJ.destroy();
-  cJ=new Chart(document.getElementById('chart-journal'),{
-    type:'bar',
-    data:{labels:jl,datasets:[{data:ja,backgroundColor:['rgba(212,168,67,0.65)','rgba(74,143,201,0.65)','rgba(74,171,120,0.65)','rgba(201,85,85,0.65)','rgba(201,125,69,0.65)'],borderRadius:4,borderSkipped:false}]},
-    options:{...base,scales:{...base.scales,y:{...base.scales.y,ticks:{color:tc,font:{size:10},callback:v=>v+'€'}}}}
+  const journals = [...new Set(RAW.map(r => r.Journal))].sort();
+  const jLabels  = journals.map(j => shortJournal(j));
+  const jAmounts = journals.map(j => Math.abs(filtered.filter(r => r.Journal === j && r.Dir === 'Debit').reduce((s, r) => s + r.Amount, 0)));
+  if (cJ) cJ.destroy();
+  cJ = new Chart(document.getElementById('chart-journal'), {
+    type: 'bar',
+    data: { labels: jLabels, datasets: [{ data: jAmounts, backgroundColor: ['rgba(217,119,6,.65)', 'rgba(37,99,235,.65)', 'rgba(22,163,74,.65)', 'rgba(220,38,38,.65)'], borderRadius: 4, borderSkipped: false }] },
+    options: { ...baseOpts, scales: { ...baseOpts.scales, y: { ...baseOpts.scales.y, ticks: { color: tc, font: { size: 10 }, callback: v => v.toLocaleString('fr-BE') + '€' } } } }
   });
 
   // Weekly trend
-  const sortedWeeks=Object.keys(WEEKLY).map(Number).sort((a,b)=>a-b);
-  const tl=sortedWeeks.map(w=>'W'+w);
-  const td=sortedWeeks.map(w=>WEEKLY[w]);
-  if(cT)cT.destroy();
-  cT=new Chart(document.getElementById('chart-trend'),{
-    type:'line',
-    data:{labels:tl,datasets:[{data:td,borderColor:'rgba(212,168,67,0.8)',backgroundColor:'rgba(212,168,67,0.08)',borderWidth:2,pointBackgroundColor:'rgba(212,168,67,0.9)',pointRadius:4,tension:0.3,fill:true}]},
-    options:{...base,scales:{...base.scales,y:{...base.scales.y,ticks:{color:tc,font:{size:10},stepSize:1}}}}
+  const sortedWeeks = Object.keys(WEEKLY).map(Number).sort((a, b) => a - b);
+  if (cT) cT.destroy();
+  cT = new Chart(document.getElementById('chart-trend'), {
+    type: 'line',
+    data: {
+      labels: sortedWeeks.map(w => 'W' + w),
+      datasets: [{ data: sortedWeeks.map(w => WEEKLY[w]), borderColor: 'rgba(217,119,6,.8)', backgroundColor: 'rgba(217,119,6,.07)', borderWidth: 2, pointBackgroundColor: 'rgba(217,119,6,.9)', pointRadius: 4, tension: 0.3, fill: true }]
+    },
+    options: { ...baseOpts, scales: { ...baseOpts.scales, y: { ...baseOpts.scales.y, ticks: { color: tc, font: { size: 10 }, stepSize: 1 } } } }
   });
 }
 
-// ── UTILS ─────────────────────────────────────────────
-function show(id){
-  ['auth-screen','loading-screen','dashboard'].forEach(s=>{
-    const el=document.getElementById(s);
-    el.style.display=s===id?(s==='loading-screen'?'flex':'block'):'none';
+// ── UTILS ──────────────────────────────────────────────
+function show(id) {
+  ['auth-screen', 'loading-screen', 'dashboard'].forEach(s => {
+    const el = document.getElementById(s);
+    el.style.display = s === id ? (s === 'loading-screen' ? 'flex' : 'block') : 'none';
   });
 }
-function setLoading(msg){document.getElementById('loading-text').textContent=msg;}
+function setLoading(msg) { document.getElementById('loading-text').textContent = msg; }
+function fmt(n) {
+  return (n < 0 ? '-' : '') + Math.abs(n).toLocaleString('fr-BE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+}
+function ageBadge(a) {
+  const c = a === '90+ days' ? 'b-critical' : a === '31-90 days' ? 'b-high' : a === '8-30 days' ? 'b-medium' : 'b-low';
+  return `<span class="badge ${c}">${a}</span>`;
+}
+function esc(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
 </script>
 </body>
 </html>
