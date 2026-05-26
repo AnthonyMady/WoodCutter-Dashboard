@@ -206,6 +206,13 @@ tr.row-critical:hover td{background:rgba(220,38,38,.06)}
       <option value="carryover">Carry-over</option>
       <option value="resolved">Resolved ✓</option>
     </select>
+    <select id="f-streak" onchange="applyFilters()">
+      <option value="">Any streak</option>
+      <option value="2">2+ weeks</option>
+      <option value="3">3+ weeks</option>
+      <option value="5">5+ weeks</option>
+      <option value="8">8+ weeks</option>
+    </select>
   </div>
 
   <main>
@@ -245,6 +252,7 @@ tr.row-critical:hover td{background:rgba(220,38,38,.06)}
             <th onclick="sortBy('Days')">Days<span class="sort-icon" id="si-Days"></span></th>
             <th>Aging</th>
             <th>Status</th>
+            <th onclick="sortBy('_streak')" title="How many consecutive weeks this transaction has appeared">Streak<span class="sort-icon" id="si-_streak"></span></th>
             <th>Label</th>
           </tr></thead>
           <tbody id="tbody"></tbody>
@@ -444,6 +452,39 @@ function computeReconciliation() {
   RAW.forEach(r => {
     r._status = prevIDs.has(r.ExternalID) ? 'carryover' : 'new';
   });
+
+  // ── Streak computation ─────────────────────────────────
+  // Build ExternalID sets per week once
+  const weekSets = {};
+  ALL_WEEK_NUMS.forEach(wk => {
+    weekSets[wk] = new Set((ALL_WEEKS[wk] || []).map(r => r.ExternalID));
+  });
+
+  const activeIdx = ALL_WEEK_NUMS.indexOf(ACTIVE_WEEK);
+
+  // For each RAW row: count consecutive weeks going backwards from ACTIVE_WEEK
+  RAW.forEach(r => {
+    let streak = 0;
+    for (let i = activeIdx; i < ALL_WEEK_NUMS.length; i++) {
+      if (weekSets[ALL_WEEK_NUMS[i]].has(r.ExternalID)) streak++;
+      else break;
+    }
+    r._streak = streak;
+    // First-seen week (earliest week this ExternalID appears in any export)
+    r._firstSeen = ALL_WEEK_NUMS.slice().reverse().find(wk => weekSets[wk].has(r.ExternalID)) || ACTIVE_WEEK;
+  });
+
+  // For RESOLVED rows: streak ending at the previous week (how long before it was cleared)
+  const prevIdx = activeIdx + 1;
+  RESOLVED.forEach(r => {
+    let streak = 0;
+    for (let i = prevIdx; i < ALL_WEEK_NUMS.length; i++) {
+      if (weekSets[ALL_WEEK_NUMS[i]].has(r.ExternalID)) streak++;
+      else break;
+    }
+    r._streak    = streak;
+    r._firstSeen = ALL_WEEK_NUMS.slice().reverse().find(wk => weekSets[wk].has(r.ExternalID)) || (ALL_WEEK_NUMS[prevIdx] || ACTIVE_WEEK);
+  });
 }
 
 // ── FILTERS ────────────────────────────────────────────
@@ -465,14 +506,15 @@ function getFilterFn() {
   const a  = document.getElementById('f-aging').value;
   const d  = document.getElementById('f-dir').value;
   const st = document.getElementById('f-status').value;
+  const sk = parseInt(document.getElementById('f-streak').value) || 0;
   return r =>
     (!s  || r.Label.toLowerCase().includes(s) || r.Partner.toLowerCase().includes(s)) &&
     (!j  || r.Journal === j) &&
     (!m  || r.Month === m) &&
     (!a  || r.Aging === a) &&
     (!d  || r.Dir === d) &&
-    // status: 'resolved' source is already set in applyFilters, only filter new/carryover here
-    (!st || st === 'resolved' || r._status === st);
+    (!st || st === 'resolved' || r._status === st) &&
+    (!sk || (r._streak || 0) >= sk);
 }
 
 function applyFilters() {
@@ -503,21 +545,26 @@ function renderReconciliation() {
   const journals = [...new Set([...RAW, ...PREV_RAW].map(r => r.Journal))].sort();
 
   const rows = journals.map(j => {
-    const prev   = PREV_RAW.filter(r => r.Journal === j).length;
-    const res    = RESOLVED.filter(r => r.Journal === j).length;
-    const carry  = RAW.filter(r => r.Journal === j && r._status === 'carryover').length;
-    const newCnt = RAW.filter(r => r.Journal === j && r._status === 'new').length;
-    const rate   = prev > 0 ? Math.round(res / prev * 100) : (res === 0 ? 0 : 100);
-    return { name: shortJournal(j), prev, res, carry, newCnt, rate };
+    const prev      = PREV_RAW.filter(r => r.Journal === j).length;
+    const res       = RESOLVED.filter(r => r.Journal === j).length;
+    const carry     = RAW.filter(r => r.Journal === j && r._status === 'carryover').length;
+    const newCnt    = RAW.filter(r => r.Journal === j && r._status === 'new').length;
+    const rate      = prev > 0 ? Math.round(res / prev * 100) : (res === 0 ? 0 : 100);
+    const jStreaks  = RAW.filter(r => r.Journal === j).map(r => r._streak || 1);
+    const maxStreak = jStreaks.length ? Math.max(...jStreaks) : 0;
+    return { name: shortJournal(j), prev, res, carry, newCnt, rate, maxStreak };
   });
 
-  const totalPrev  = rows.reduce((s, r) => s + r.prev, 0);
-  const totalRes   = rows.reduce((s, r) => s + r.res, 0);
-  const totalCarry = rows.reduce((s, r) => s + r.carry, 0);
-  const totalNew   = rows.reduce((s, r) => s + r.newCnt, 0);
-  const totalRate  = totalPrev > 0 ? Math.round(totalRes / totalPrev * 100) : 0;
+  const totalPrev      = rows.reduce((s, r) => s + r.prev, 0);
+  const totalRes       = rows.reduce((s, r) => s + r.res, 0);
+  const totalCarry     = rows.reduce((s, r) => s + r.carry, 0);
+  const totalNew       = rows.reduce((s, r) => s + r.newCnt, 0);
+  const totalRate      = totalPrev > 0 ? Math.round(totalRes / totalPrev * 100) : 0;
+  const overallMaxStreak = rows.reduce((m, r) => Math.max(m, r.maxStreak), 0);
 
-  const rateColor = r => r >= 75 ? '#4ade80' : r >= 40 ? '#fbbf24' : 'var(--muted2)';
+  const rateColor   = r => r >= 75 ? '#4ade80' : r >= 40 ? '#fbbf24' : 'var(--muted2)';
+  const streakColor = s => s >= 5 ? '#f87171' : s >= 3 ? '#fbbf24' : s >= 2 ? '#a1a1aa' : 'var(--muted)';
+  const streakLabel = s => s >= 5 ? `🔥 ${s}w` : s >= 2 ? `↑ ${s}w` : s === 1 ? '1w' : '—';
 
   const rowHTML = rows.map(r => `
     <tr>
@@ -526,6 +573,7 @@ function renderReconciliation() {
       <td class="mono" style="color:${r.res > 0 ? '#4ade80' : 'var(--muted)'};font-weight:${r.res > 0 ? 600 : 400}">${r.res > 0 ? '▼ ' + r.res : '—'}</td>
       <td class="mono" style="color:${r.carry > 0 ? '#fbbf24' : 'var(--muted)'}">${r.carry > 0 ? r.carry : '—'}</td>
       <td class="mono" style="color:${r.newCnt > 0 ? '#60a5fa' : 'var(--muted)'}">${r.newCnt > 0 ? '▲ ' + r.newCnt : '—'}</td>
+      <td style="color:${streakColor(r.maxStreak)};font-weight:${r.maxStreak >= 3 ? 600 : 400};font-size:12px">${streakLabel(r.maxStreak)}</td>
       <td>
         <div style="display:flex;align-items:center;gap:8px">
           <div class="progress-bar-wrap"><div class="progress-bar-fill" style="width:${r.rate}%"></div></div>
@@ -538,7 +586,7 @@ function renderReconciliation() {
     <div class="recon-card">
       <div class="table-header">
         <div class="table-header-title">Week-over-week reconciliation</div>
-        <div style="font-size:11px;color:var(--muted)">${totalRes} of ${totalPrev} resolved this week — <span style="color:${rateColor(totalRate)};font-weight:600">${totalRate}% resolution rate</span></div>
+        <div style="font-size:11px;color:var(--muted)">${totalRes} of ${totalPrev} resolved this week — <span style="color:${rateColor(totalRate)};font-weight:600">${totalRate}% resolution rate</span>${overallMaxStreak >= 3 ? ` · <span style="color:#f87171">longest streak: ${overallMaxStreak}w</span>` : ''}</div>
       </div>
       <table class="recon-table">
         <thead><tr>
@@ -547,6 +595,7 @@ function renderReconciliation() {
           <th style="color:#4ade80">✓ Resolved</th>
           <th style="color:#fbbf24">↺ Still open</th>
           <th style="color:#60a5fa">+ New</th>
+          <th title="Longest consecutive-week streak among open transactions">Longest streak</th>
           <th>Progress</th>
         </tr></thead>
         <tbody>
@@ -557,6 +606,7 @@ function renderReconciliation() {
             <td class="mono" style="color:${totalRes > 0 ? '#4ade80' : 'var(--muted)'};font-weight:600">${totalRes > 0 ? '▼ ' + totalRes : '—'}</td>
             <td class="mono" style="color:${totalCarry > 0 ? '#fbbf24' : 'var(--muted)'};font-weight:600">${totalCarry > 0 ? totalCarry : '—'}</td>
             <td class="mono" style="color:${totalNew > 0 ? '#60a5fa' : 'var(--muted)'};font-weight:600">${totalNew > 0 ? '▲ ' + totalNew : '—'}</td>
+            <td style="color:${streakColor(overallMaxStreak)};font-weight:600">${streakLabel(overallMaxStreak)}</td>
             <td>
               <div style="display:flex;align-items:center;gap:8px">
                 <div class="progress-bar-wrap"><div class="progress-bar-fill" style="width:${totalRate}%"></div></div>
@@ -681,6 +731,7 @@ function renderAll() {
       <td class="mono" style="text-align:center;color:var(--muted2)">${r.Days}</td>
       <td>${ageBadge(r.Aging)}</td>
       <td>${statusBadge(r._status)}</td>
+      <td>${streakBadge(r._streak, r._firstSeen)}</td>
       <td class="label-cell">${esc(r.Label) || '—'}</td>
     </tr>`;
   }).join('');
@@ -697,8 +748,8 @@ function renderAll() {
 
 // ── EXPORT ─────────────────────────────────────────────
 function exportCSV() {
-  const cols = ['Date', 'Month', 'Journal', 'Partner', 'Label', 'Amount', 'Dir', 'Days', 'Aging', '_status', 'ExternalID'];
-  const headers = ['Date', 'Month', 'Journal', 'Partner', 'Label', 'Amount', 'Debit/Credit', 'Days Unreconciled', 'Aging Bucket', 'Status', 'External ID'];
+  const cols = ['Date', 'Month', 'Journal', 'Partner', 'Label', 'Amount', 'Dir', 'Days', 'Aging', '_status', '_streak', '_firstSeen', 'ExternalID'];
+  const headers = ['Date', 'Month', 'Journal', 'Partner', 'Label', 'Amount', 'Debit/Credit', 'Days Unreconciled', 'Aging Bucket', 'Status', 'Streak (weeks)', 'First Seen Week', 'External ID'];
 
   const rows = [headers.map(csvCell).join(';')];
   filtered.forEach(r => {
@@ -782,6 +833,14 @@ function fmt(n) {
 function ageBadge(a) {
   const c = a === '90+ days' ? 'b-critical' : a === '31-90 days' ? 'b-high' : a === '8-30 days' ? 'b-medium' : 'b-low';
   return `<span class="badge ${c}">${a}</span>`;
+}
+function streakBadge(s, firstSeen) {
+  if (!s || s < 1) return '<span style="color:var(--muted);font-size:11px">—</span>';
+  const tip = firstSeen ? ` title="First seen W${firstSeen}"` : '';
+  if (s >= 5) return `<span class="badge b-critical"${tip}>🔥 ${s}w</span>`;
+  if (s >= 3) return `<span class="badge b-high"${tip}>↑ ${s}w</span>`;
+  if (s >= 2) return `<span class="badge b-carryover"${tip}>${s}w</span>`;
+  return `<span class="badge" style="color:var(--muted2);border:1px solid var(--border)"${tip}>1w</span>`;
 }
 function statusBadge(s) {
   if (s === 'new')       return '<span class="badge b-new">New</span>';
