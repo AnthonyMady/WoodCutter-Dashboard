@@ -184,6 +184,7 @@ tr.row-critical:hover td{background:rgba(220,38,38,.06)}
   </header>
 
   <div class="filters">
+    <select id="f-week" onchange="setWeek(+this.value)" style="font-weight:600;min-width:110px"></select>
     <input type="text" id="search" placeholder="Search label or partner…" oninput="applyFilters()" />
     <select id="f-journal" onchange="applyFilters()"><option value="">All journals</option></select>
     <select id="f-month" onchange="applyFilters()"><option value="">All months</option></select>
@@ -265,6 +266,7 @@ let RAW = [], PREV_RAW = [];
 let RESOLVED = [];
 let filtered = [], filteredPrev = [];
 let WEEKLY = {};
+let ALL_WEEKS = {}, ALL_WEEK_NUMS = [], ALL_WEEKS_FILES = {}, ACTIVE_WEEK = null;
 let sortCol = 'Days', sortAsc = false;
 let cA, cJ, cT;
 
@@ -307,46 +309,73 @@ async function loadData() {
     });
 
     const weeks = Object.keys(byWeek).map(Number).sort((a, b) => b - a);
-    const latestWeek = weeks[0];
-    const prevWeek   = weeks[1] || null;
 
     WEEKLY = {};
+    ALL_WEEKS = {};
+    ALL_WEEKS_FILES = byWeek;
+    ALL_WEEK_NUMS = weeks;
     setLoading(`Loading ${csvRes.files.length} file(s) across ${weeks.length} week(s)…`);
 
-    const weeklyRows = {};
     for (const wk of weeks) {
-      weeklyRows[wk] = [];
+      ALL_WEEKS[wk] = [];
       for (const file of byWeek[wk]) {
         const content = await driveDownload(file.id);
-        weeklyRows[wk] = weeklyRows[wk].concat(parseCSV(content));
+        ALL_WEEKS[wk] = ALL_WEEKS[wk].concat(parseCSV(content));
       }
       // deduplicate by ExternalID within the week
       const seen = new Set();
-      weeklyRows[wk] = weeklyRows[wk].filter(r => {
+      ALL_WEEKS[wk] = ALL_WEEKS[wk].filter(r => {
         if (seen.has(r.ExternalID)) return false;
         seen.add(r.ExternalID); return true;
       });
-      WEEKLY[wk] = weeklyRows[wk].length;
+      WEEKLY[wk] = ALL_WEEKS[wk].length;
     }
 
-    RAW      = weeklyRows[latestWeek] || [];
-    PREV_RAW = prevWeek !== null ? (weeklyRows[prevWeek] || []) : [];
-    RAW.sort((a, b) => b.Days - a.Days);
-    computeReconciliation();
-
-    const latest = byWeek[latestWeek][0].modifiedTime;
-    document.getElementById('last-updated').textContent =
-      'Week ' + latestWeek + ' · ' + new Date(latest).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
-    document.getElementById('header-sub').textContent =
-      `${RAW.length} unreconciled · W${latestWeek}` + (prevWeek ? ` · vs W${prevWeek}` : '');
-
-    populateFilters();
+    populateWeekFilter();
     show('dashboard');
-    applyFilters();
+    setWeek(weeks[0]); // default to latest week
   } catch (e) {
     show('dashboard');
     document.querySelector('main').innerHTML = `<div class="error-box">⚠ ${e.message}</div>`;
   }
+}
+
+// ── WEEK SELECTOR ─────────────────────────────────────
+function populateWeekFilter() {
+  const sel = document.getElementById('f-week');
+  sel.innerHTML = '';
+  ALL_WEEK_NUMS.forEach((wk, i) => {
+    const o = document.createElement('option');
+    o.value = wk;
+    o.textContent = `W${wk}${i === 0 ? ' (latest)' : ''}`;
+    sel.appendChild(o);
+  });
+}
+
+function setWeek(wk) {
+  ACTIVE_WEEK = wk;
+  const idx    = ALL_WEEK_NUMS.indexOf(wk);
+  const prevWk = idx + 1 < ALL_WEEK_NUMS.length ? ALL_WEEK_NUMS[idx + 1] : null;
+
+  RAW      = (ALL_WEEKS[wk] || []).slice().sort((a, b) => b.Days - a.Days);
+  PREV_RAW = prevWk !== null ? (ALL_WEEKS[prevWk] || []) : [];
+  computeReconciliation();
+
+  // Update header
+  const files = ALL_WEEKS_FILES[wk] || [];
+  const modTime = files[0]?.modifiedTime;
+  document.getElementById('last-updated').textContent =
+    'Week ' + wk + (modTime ? ' · ' + new Date(modTime).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '');
+  document.getElementById('header-sub').textContent =
+    `${RAW.length} unreconciled · W${wk}` + (prevWk ? ` · vs W${prevWk}` : '');
+
+  // Sync week picker
+  const sel = document.getElementById('f-week');
+  if (sel.value != wk) sel.value = wk;
+
+  // Reset other filters then render
+  populateFilters();
+  applyFilters();
 }
 
 // ── DRIVE ──────────────────────────────────────────────
