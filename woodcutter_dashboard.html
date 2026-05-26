@@ -128,6 +128,21 @@ tr.row-critical:hover td{background:rgba(220,38,38,.06)}
 .sort-icon{font-size:9px;margin-left:3px;opacity:.5}
 .table-footer{padding:8px 12px;font-size:11px;color:var(--muted);border-top:1px solid var(--border);background:var(--s2);font-variant-numeric:tabular-nums}
 .error-box{background:rgba(220,38,38,.06);border:1px solid rgba(220,38,38,.2);border-radius:var(--radius);padding:14px 18px;color:#f87171;font-size:12px;margin:28px}
+
+/* ── RECONCILIATION ──────────────────────────────────── */
+.recon-card{background:var(--s1);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:16px}
+.recon-table{width:100%;border-collapse:collapse}
+.recon-table th{text-align:left;padding:8px 14px;font-size:10px;font-weight:500;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--border);background:var(--s2);white-space:nowrap}
+.recon-table td{padding:9px 14px;border-bottom:1px solid var(--border);font-size:12px;vertical-align:middle}
+.recon-table tr:last-child td{border-bottom:none}
+.recon-table tr:hover td{background:rgba(255,255,255,.02)}
+.recon-total td{border-top:1px solid var(--border2)!important;background:var(--s2)!important}
+.progress-bar-wrap{width:70px;height:5px;background:var(--border2);border-radius:3px;overflow:hidden;display:inline-block;vertical-align:middle}
+.progress-bar-fill{height:100%;border-radius:3px;background:var(--green2);transition:width .4s}
+.b-resolved{background:rgba(22,163,74,.08);color:#4ade80;border:1px solid rgba(22,163,74,.15)}
+.b-carryover{background:rgba(217,119,6,.08);color:#fbbf24;border:1px solid rgba(217,119,6,.15)}
+.b-new{background:rgba(59,130,246,.08);color:#60a5fa;border:1px solid rgba(59,130,246,.15)}
+.resolved-banner{padding:8px 14px;font-size:11px;color:#4ade80;background:rgba(22,163,74,.05);border-bottom:1px solid rgba(22,163,74,.12);display:none}
 </style>
 </head>
 <body>
@@ -184,11 +199,18 @@ tr.row-critical:hover td{background:rgba(220,38,38,.06)}
       <option value="Debit">Debit</option>
       <option value="Credit">Credit</option>
     </select>
+    <select id="f-status" onchange="applyFilters()">
+      <option value="">All statuses</option>
+      <option value="new">New this week</option>
+      <option value="carryover">Carry-over</option>
+      <option value="resolved">Resolved ✓</option>
+    </select>
   </div>
 
   <main>
     <div class="kpis" id="kpis"></div>
     <div class="journal-strips" id="journal-strips"></div>
+    <div id="recon-section"></div>
     <div class="charts">
       <div class="chart-card">
         <div class="chart-title">Aging distribution</div>
@@ -210,6 +232,7 @@ tr.row-critical:hover td{background:rgba(220,38,38,.06)}
           <button class="btn-export" id="export-btn" onclick="exportCSV()">↓ Export CSV</button>
         </div>
       </div>
+      <div class="resolved-banner" id="resolved-banner">✓ Showing transactions that were missing last week and have since been reconciled — they are no longer in the current week's export.</div>
       <div class="table-wrap">
         <table>
           <thead><tr>
@@ -220,6 +243,7 @@ tr.row-critical:hover td{background:rgba(220,38,38,.06)}
             <th>Type</th>
             <th onclick="sortBy('Days')">Days<span class="sort-icon" id="si-Days"></span></th>
             <th>Aging</th>
+            <th>Status</th>
             <th>Label</th>
           </tr></thead>
           <tbody id="tbody"></tbody>
@@ -238,6 +262,7 @@ const SCOPES      = 'https://www.googleapis.com/auth/drive.readonly';
 
 let tokenClient, accessToken;
 let RAW = [], PREV_RAW = [];
+let RESOLVED = [];
 let filtered = [], filteredPrev = [];
 let WEEKLY = {};
 let sortCol = 'Days', sortAsc = false;
@@ -307,6 +332,7 @@ async function loadData() {
     RAW      = weeklyRows[latestWeek] || [];
     PREV_RAW = prevWeek !== null ? (weeklyRows[prevWeek] || []) : [];
     RAW.sort((a, b) => b.Days - a.Days);
+    computeReconciliation();
 
     const latest = byWeek[latestWeek][0].modifiedTime;
     document.getElementById('last-updated').textContent =
@@ -376,6 +402,21 @@ function classifyAging(d) {
   if (d > 90) return '90+ days'; if (d > 30) return '31-90 days'; if (d > 7) return '8-30 days'; return '0-7 days';
 }
 
+// ── RECONCILIATION ─────────────────────────────────────
+function computeReconciliation() {
+  const currentIDs = new Set(RAW.map(r => r.ExternalID));
+  const prevIDs    = new Set(PREV_RAW.map(r => r.ExternalID));
+
+  // Rows in PREV_RAW that are no longer in current week → resolved
+  RESOLVED = PREV_RAW.filter(r => !currentIDs.has(r.ExternalID));
+  RESOLVED.forEach(r => { r._status = 'resolved'; });
+
+  // Tag each current-week row as new or carry-over
+  RAW.forEach(r => {
+    r._status = prevIDs.has(r.ExternalID) ? 'carryover' : 'new';
+  });
+}
+
 // ── FILTERS ────────────────────────────────────────────
 function populateFilters() {
   const journals = [...new Set(RAW.map(r => r.Journal))].sort();
@@ -389,23 +430,32 @@ function populateFilters() {
 }
 
 function getFilterFn() {
-  const s = document.getElementById('search').value.toLowerCase().trim();
-  const j = document.getElementById('f-journal').value;
-  const m = document.getElementById('f-month').value;
-  const a = document.getElementById('f-aging').value;
-  const d = document.getElementById('f-dir').value;
+  const s  = document.getElementById('search').value.toLowerCase().trim();
+  const j  = document.getElementById('f-journal').value;
+  const m  = document.getElementById('f-month').value;
+  const a  = document.getElementById('f-aging').value;
+  const d  = document.getElementById('f-dir').value;
+  const st = document.getElementById('f-status').value;
   return r =>
-    (!s || r.Label.toLowerCase().includes(s) || r.Partner.toLowerCase().includes(s)) &&
-    (!j || r.Journal === j) &&
-    (!m || r.Month === m) &&
-    (!a || r.Aging === a) &&
-    (!d || r.Dir === d);
+    (!s  || r.Label.toLowerCase().includes(s) || r.Partner.toLowerCase().includes(s)) &&
+    (!j  || r.Journal === j) &&
+    (!m  || r.Month === m) &&
+    (!a  || r.Aging === a) &&
+    (!d  || r.Dir === d) &&
+    // status: 'resolved' source is already set in applyFilters, only filter new/carryover here
+    (!st || st === 'resolved' || r._status === st);
 }
 
 function applyFilters() {
   const fn = getFilterFn();
-  filtered     = RAW.filter(fn);
-  filteredPrev = PREV_RAW.filter(fn);  // apply same criteria to previous week
+  const st = document.getElementById('f-status').value;
+  if (st === 'resolved') {
+    filtered     = RESOLVED.filter(fn);
+    filteredPrev = [];
+  } else {
+    filtered     = RAW.filter(fn);
+    filteredPrev = PREV_RAW.filter(fn);
+  }
   renderAll();
 }
 
@@ -414,6 +464,80 @@ function shortJournal(j) {
   if (j.includes('ANTWERP')  || j.includes('Antwerp'))  return 'Antwerp';
   if (j.includes('CUTTING')  || j.includes('Cutting'))  return 'Cutting';
   return j;
+}
+
+// ── RECONCILIATION RENDER ──────────────────────────────
+function renderReconciliation() {
+  const section = document.getElementById('recon-section');
+  if (!PREV_RAW.length) { section.innerHTML = ''; return; }
+
+  const journals = [...new Set([...RAW, ...PREV_RAW].map(r => r.Journal))].sort();
+
+  const rows = journals.map(j => {
+    const prev   = PREV_RAW.filter(r => r.Journal === j).length;
+    const res    = RESOLVED.filter(r => r.Journal === j).length;
+    const carry  = RAW.filter(r => r.Journal === j && r._status === 'carryover').length;
+    const newCnt = RAW.filter(r => r.Journal === j && r._status === 'new').length;
+    const rate   = prev > 0 ? Math.round(res / prev * 100) : (res === 0 ? 0 : 100);
+    return { name: shortJournal(j), prev, res, carry, newCnt, rate };
+  });
+
+  const totalPrev  = rows.reduce((s, r) => s + r.prev, 0);
+  const totalRes   = rows.reduce((s, r) => s + r.res, 0);
+  const totalCarry = rows.reduce((s, r) => s + r.carry, 0);
+  const totalNew   = rows.reduce((s, r) => s + r.newCnt, 0);
+  const totalRate  = totalPrev > 0 ? Math.round(totalRes / totalPrev * 100) : 0;
+
+  const rateColor = r => r >= 75 ? '#4ade80' : r >= 40 ? '#fbbf24' : 'var(--muted2)';
+
+  const rowHTML = rows.map(r => `
+    <tr>
+      <td style="font-weight:500">${r.name}</td>
+      <td class="mono" style="color:var(--muted2)">${r.prev}</td>
+      <td class="mono" style="color:${r.res > 0 ? '#4ade80' : 'var(--muted)'};font-weight:${r.res > 0 ? 600 : 400}">${r.res > 0 ? '▼ ' + r.res : '—'}</td>
+      <td class="mono" style="color:${r.carry > 0 ? '#fbbf24' : 'var(--muted)'}">${r.carry > 0 ? r.carry : '—'}</td>
+      <td class="mono" style="color:${r.newCnt > 0 ? '#60a5fa' : 'var(--muted)'}">${r.newCnt > 0 ? '▲ ' + r.newCnt : '—'}</td>
+      <td>
+        <div style="display:flex;align-items:center;gap:8px">
+          <div class="progress-bar-wrap"><div class="progress-bar-fill" style="width:${r.rate}%"></div></div>
+          <span style="font-size:11px;color:${rateColor(r.rate)};font-variant-numeric:tabular-nums">${r.rate}%</span>
+        </div>
+      </td>
+    </tr>`).join('');
+
+  section.innerHTML = `
+    <div class="recon-card">
+      <div class="table-header">
+        <div class="table-header-title">Week-over-week reconciliation</div>
+        <div style="font-size:11px;color:var(--muted)">${totalRes} of ${totalPrev} resolved this week — <span style="color:${rateColor(totalRate)};font-weight:600">${totalRate}% resolution rate</span></div>
+      </div>
+      <table class="recon-table">
+        <thead><tr>
+          <th>Journal</th>
+          <th>Last week</th>
+          <th style="color:#4ade80">✓ Resolved</th>
+          <th style="color:#fbbf24">↺ Still open</th>
+          <th style="color:#60a5fa">+ New</th>
+          <th>Progress</th>
+        </tr></thead>
+        <tbody>
+          ${rowHTML}
+          <tr class="recon-total">
+            <td style="font-weight:600;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">Total</td>
+            <td class="mono" style="font-weight:600">${totalPrev}</td>
+            <td class="mono" style="color:${totalRes > 0 ? '#4ade80' : 'var(--muted)'};font-weight:600">${totalRes > 0 ? '▼ ' + totalRes : '—'}</td>
+            <td class="mono" style="color:${totalCarry > 0 ? '#fbbf24' : 'var(--muted)'};font-weight:600">${totalCarry > 0 ? totalCarry : '—'}</td>
+            <td class="mono" style="color:${totalNew > 0 ? '#60a5fa' : 'var(--muted)'};font-weight:600">${totalNew > 0 ? '▲ ' + totalNew : '—'}</td>
+            <td>
+              <div style="display:flex;align-items:center;gap:8px">
+                <div class="progress-bar-wrap"><div class="progress-bar-fill" style="width:${totalRate}%"></div></div>
+                <span style="font-size:11px;font-weight:600;color:${rateColor(totalRate)};font-variant-numeric:tabular-nums">${totalRate}%</span>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>`;
 }
 
 // ── SORT ───────────────────────────────────────────────
@@ -425,6 +549,11 @@ function sortBy(col) {
 
 // ── RENDER ─────────────────────────────────────────────
 function renderAll() {
+  renderReconciliation();
+
+  const st = document.getElementById('f-status').value;
+  document.getElementById('resolved-banner').style.display = st === 'resolved' ? 'block' : 'none';
+
   const sorted = [...filtered].sort((a, b) => {
     let av = a[sortCol], bv = b[sortCol];
     if (typeof av === 'string') { av = av.toLowerCase(); bv = bv.toLowerCase(); }
@@ -522,6 +651,7 @@ function renderAll() {
       <td><span class="badge ${r.Dir === 'Debit' ? 'b-debit' : 'b-credit'}">${r.Dir}</span></td>
       <td class="mono" style="text-align:center;color:var(--muted2)">${r.Days}</td>
       <td>${ageBadge(r.Aging)}</td>
+      <td>${statusBadge(r._status)}</td>
       <td class="label-cell">${esc(r.Label) || '—'}</td>
     </tr>`;
   }).join('');
@@ -538,8 +668,8 @@ function renderAll() {
 
 // ── EXPORT ─────────────────────────────────────────────
 function exportCSV() {
-  const cols = ['Date', 'Month', 'Journal', 'Partner', 'Label', 'Amount', 'Dir', 'Days', 'Aging', 'ExternalID'];
-  const headers = ['Date', 'Month', 'Journal', 'Partner', 'Label', 'Amount', 'Debit/Credit', 'Days Unreconciled', 'Aging Bucket', 'External ID'];
+  const cols = ['Date', 'Month', 'Journal', 'Partner', 'Label', 'Amount', 'Dir', 'Days', 'Aging', '_status', 'ExternalID'];
+  const headers = ['Date', 'Month', 'Journal', 'Partner', 'Label', 'Amount', 'Debit/Credit', 'Days Unreconciled', 'Aging Bucket', 'Status', 'External ID'];
 
   const rows = [headers.map(csvCell).join(';')];
   filtered.forEach(r => {
@@ -623,6 +753,12 @@ function fmt(n) {
 function ageBadge(a) {
   const c = a === '90+ days' ? 'b-critical' : a === '31-90 days' ? 'b-high' : a === '8-30 days' ? 'b-medium' : 'b-low';
   return `<span class="badge ${c}">${a}</span>`;
+}
+function statusBadge(s) {
+  if (s === 'new')       return '<span class="badge b-new">New</span>';
+  if (s === 'carryover') return '<span class="badge b-carryover">Carry-over</span>';
+  if (s === 'resolved')  return '<span class="badge b-resolved">Resolved ✓</span>';
+  return '<span style="color:var(--muted);font-size:11px">—</span>';
 }
 function esc(s) {
   return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
