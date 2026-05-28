@@ -531,12 +531,18 @@ function applyFilters() {
 }
 
 function shortJournal(j) {
+  // Shooters — check before generic Brussels/Antwerp
   if (j.includes('SHOOTERS EVERYWHERE') || j.includes('Shooters Everywhere')) return 'Shooters Everywhere';
   if (j.includes('SHOOTERS BRUSSELS')   || j.includes('Shooters Brussels'))   return 'Shooters Brussels';
   if (j.includes('SHOOTERS'))                                                  return 'Shooters';
-  if (j.includes('BRUSSELS') || j.includes('Brussels')) return 'Brussels';
-  if (j.includes('ANTWERP')  || j.includes('Antwerp'))  return 'Antwerp';
-  if (j.includes('CUTTING')  || j.includes('Cutting'))  return 'Cutting';
+  // Credit cards — identified by last 4 digits
+  if (j.includes('8088')) return 'CC WoodCutter Brussels 8088';
+  if (j.includes('0152')) return 'CC WoodCutter Antwerp 0152';
+  if (j.includes('2259')) return 'CC Romain Felix 2259';
+  // WoodCutter bank accounts
+  if (j.includes('BRUSSELS') || j.includes('Brussels')) return 'WoodCutter Brussels';
+  if (j.includes('ANTWERP')  || j.includes('Antwerp'))  return 'WoodCutter Antwerp';
+  if (j.includes('CUTTING')  || j.includes('Cutting'))  return 'WoodCutter Cutting';
   return j;
 }
 
