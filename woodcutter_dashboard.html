@@ -531,6 +531,9 @@ function applyFilters() {
 }
 
 function shortJournal(j) {
+  if (j.includes('SHOOTERS EVERYWHERE') || j.includes('Shooters Everywhere')) return 'Shooters Everywhere';
+  if (j.includes('SHOOTERS BRUSSELS')   || j.includes('Shooters Brussels'))   return 'Shooters Brussels';
+  if (j.includes('SHOOTERS'))                                                  return 'Shooters';
   if (j.includes('BRUSSELS') || j.includes('Brussels')) return 'Brussels';
   if (j.includes('ANTWERP')  || j.includes('Antwerp'))  return 'Antwerp';
   if (j.includes('CUTTING')  || j.includes('Cutting'))  return 'Cutting';
