@@ -274,7 +274,7 @@ const CLIENT_ID   = '1022326121984-6kvtq4tld6i3gtqq109oo83dj066o70b.apps.googleu
 
 const PERSON_FILTERS = {
   julien: ['julien', 'chatgpt', 'openai', 'one.com'],
-  romain: ['adobe', 'google ads', 'google workspace', 'meta ads', 'stape',
+  romain: ['romain', 'adobe', 'google ads', 'google workspace', 'meta ads', 'stape',
            'cookiebot', 'mailjet', 'netdelight', 'canva', 'artlist',
            'infomaniak', 'supermetrics'],
 };
@@ -529,7 +529,7 @@ function getFilterFn() {
     (!d  || r.Dir === d) &&
     (!st || st === 'resolved' || r._status === st) &&
     (!sk || (r._streak || 0) >= sk) &&
-    (!peTerms || peTerms.some(t => r.Partner.toLowerCase().includes(t)));
+    (!peTerms || peTerms.some(t => r.Partner.toLowerCase().includes(t) || r.Label.toLowerCase().includes(t)));
 }
 
 function applyFilters() {
