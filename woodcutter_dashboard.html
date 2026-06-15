@@ -206,6 +206,11 @@ tr.row-critical:hover td{background:#fee2e2}
       <option value="carryover">Carry-over</option>
       <option value="resolved">Resolved ✓</option>
     </select>
+    <select id="f-person" onchange="applyFilters()" style="font-weight:600">
+      <option value="">All people</option>
+      <option value="julien">Julien</option>
+      <option value="romain">Romain</option>
+    </select>
     <select id="f-streak" onchange="applyFilters()">
       <option value="">Any streak</option>
       <option value="2">2+ weeks</option>
@@ -266,6 +271,13 @@ tr.row-critical:hover td{background:#fee2e2}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <script>
 const CLIENT_ID   = '1022326121984-6kvtq4tld6i3gtqq109oo83dj066o70b.apps.googleusercontent.com';
+
+const PERSON_FILTERS = {
+  julien: ['julien', 'chatgpt', 'openai', 'one.com'],
+  romain: ['adobe', 'google ads', 'google workspace', 'meta ads', 'stape',
+           'cookiebot', 'mailjet', 'netdelight', 'canva', 'artlist',
+           'infomaniak', 'supermetrics'],
+};
 const FOLDER_NAME = 'Automated Odoo accounting CSV';
 const SCOPES      = 'https://www.googleapis.com/auth/drive.readonly';
 
@@ -507,6 +519,8 @@ function getFilterFn() {
   const d  = document.getElementById('f-dir').value;
   const st = document.getElementById('f-status').value;
   const sk = parseInt(document.getElementById('f-streak').value) || 0;
+  const pe = document.getElementById('f-person').value;
+  const peTerms = pe ? PERSON_FILTERS[pe] : null;
   return r =>
     (!s  || r.Label.toLowerCase().includes(s) || r.Partner.toLowerCase().includes(s)) &&
     (!j  || r.Journal === j) &&
@@ -514,7 +528,8 @@ function getFilterFn() {
     (!a  || r.Aging === a) &&
     (!d  || r.Dir === d) &&
     (!st || st === 'resolved' || r._status === st) &&
-    (!sk || (r._streak || 0) >= sk);
+    (!sk || (r._streak || 0) >= sk) &&
+    (!peTerms || peTerms.some(t => r.Partner.toLowerCase().includes(t)));
 }
 
 function applyFilters() {
