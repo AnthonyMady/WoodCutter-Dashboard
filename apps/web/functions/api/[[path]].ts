@@ -1,5 +1,6 @@
-// api Worker — read-only KV reader behind Cloudflare Access.
-// All routes return JSON.
+// Cloudflare Pages Function — handles all /api/* requests.
+// Catch-all syntax: [[path]].ts captures any sub-path under /api/.
+// File-based routing: this file is reachable at /api/<anything>.
 
 import {
   ALL_VENUES,
@@ -16,24 +17,22 @@ import {
   type Venue,
 } from "@woodcutter/shared";
 
-import { AccessError, validateAccessJwt } from "./auth.ts";
+import { AccessError, tryAuth, validateAccessJwt } from "./_auth.ts";
 
-export interface Env {
+interface Env {
   KV: KVNamespace;
   CF_ACCESS_AUD: string;
   CF_ACCESS_TEAM_DOMAIN: string;
   SHOOTERS_ALLOWLIST: string;
-  /** Comma-separated allowed origins for CORS (e.g. "https://dashboard.example.com"). Optional — defaults to same-origin only. */
+  /** Comma-separated allowed origins for CORS. Optional — defaults to same-origin only. */
   ALLOWED_ORIGINS?: string;
 }
 
 const SECURITY_HEADERS = {
-  // Defence-in-depth headers that apply to every JSON response.
   "X-Content-Type-Options": "nosniff",
   "X-Frame-Options": "DENY",
   "Referrer-Policy": "no-referrer",
   "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
-  // CSP: this Worker only emits JSON. No need to allow scripts/styles.
   "Content-Security-Policy": "default-src 'none'; frame-ancestors 'none'",
 };
 
@@ -41,9 +40,6 @@ function corsHeaders(req: Request, env: Env): Record<string, string> {
   const origin = req.headers.get("Origin") ?? "";
   const allowed = (env.ALLOWED_ORIGINS ?? "").split(",").map((s) => s.trim()).filter(Boolean);
 
-  // Same-origin (no Origin header) → no CORS needed
-  // Cross-origin from an allowed origin → echo it back
-  // Anything else → no CORS headers (browser blocks)
   if (origin && allowed.includes(origin)) {
     return {
       "Access-Control-Allow-Origin": origin,
@@ -56,70 +52,65 @@ function corsHeaders(req: Request, env: Env): Record<string, string> {
   return {};
 }
 
-export default {
-  async fetch(req: Request, env: Env): Promise<Response> {
-    const cors = corsHeaders(req, env);
+/**
+ * Pages Function catch-all entry. The runtime calls this for every /api/* request.
+ * Pattern matches the standalone Worker's `fetch` handler — same logic, same auth.
+ */
+export const onRequest: PagesFunction<Env> = async ({ request, env }) => {
+  const cors = corsHeaders(request, env);
 
-    if (req.method === "OPTIONS") return new Response(null, { headers: cors });
+  if (request.method === "OPTIONS") return new Response(null, { headers: cors });
 
-    const url = new URL(req.url);
+  const url = new URL(request.url);
 
-    // /api/health is public — but returns ONLY a single overall status to
-    // unauthenticated callers. Per-source detail requires a valid JWT.
-    if (url.pathname === "/api/health") {
-      const authed = await tryAuth(req, env);
-      return json(await healthHandler(env, authed != null), 200, cors);
+  // /api/health is public — but returns ONLY a single overall status to
+  // unauthenticated callers. Per-source detail requires a valid JWT.
+  if (url.pathname === "/api/health") {
+    const authedEmail = await tryAuth(request, env.CF_ACCESS_TEAM_DOMAIN, env.CF_ACCESS_AUD);
+    return json(await healthHandler(env, authedEmail != null), 200, cors);
+  }
+
+  // All other routes require Access JWT
+  let identity;
+  try {
+    identity = await validateAccessJwt(request, env.CF_ACCESS_TEAM_DOMAIN, env.CF_ACCESS_AUD);
+  } catch (err) {
+    const status = err instanceof AccessError ? err.status : 500;
+    const reason = err instanceof Error ? err.message : "unauthorised";
+    return json({ error: reason }, status, cors);
+  }
+
+  const allowed = parseList(env.SHOOTERS_ALLOWLIST);
+  const canSeeShooters = allowed.includes(identity.email);
+
+  if (url.pathname === "/api/meta") {
+    return json(await metaHandler(env, identity.email, canSeeShooters), 200, cors);
+  }
+
+  if (url.pathname === "/api/revenue") {
+    const venue = parseVenueParam(url, "All");
+    if (venue === "Shooters Brussels" && !canSeeShooters) {
+      return json({ error: "forbidden" }, 403, cors);
     }
+    return json(await revenueHandler(env, venue), 200, cors);
+  }
 
-    let identity;
-    try {
-      identity = await validateAccessJwt(req, env.CF_ACCESS_TEAM_DOMAIN, env.CF_ACCESS_AUD);
-    } catch (err) {
-      const status = err instanceof AccessError ? err.status : 500;
-      const reason = err instanceof Error ? err.message : "unauthorised";
-      return json({ error: reason }, status, cors);
+  if (url.pathname === "/api/marketing") {
+    const venue = parseVenueParam(url, "All");
+    if (venue === "Shooters Brussels" && !canSeeShooters) {
+      return json({ error: "forbidden" }, 403, cors);
     }
+    return json(await marketingHandler(env, venue), 200, cors);
+  }
 
-    const allowed = parseList(env.SHOOTERS_ALLOWLIST);
-    const canSeeShooters = allowed.includes(identity.email);
+  if (url.pathname === "/api/digest") {
+    return json(await digestHandler(env), 200, cors);
+  }
 
-    if (url.pathname === "/api/meta") {
-      return json(await metaHandler(env, identity.email, canSeeShooters), 200, cors);
-    }
-
-    if (url.pathname === "/api/revenue") {
-      const venue = parseVenueParam(url, "All");
-      if (venue === "Shooters Brussels" && !canSeeShooters) {
-        return json({ error: "forbidden" }, 403, cors);
-      }
-      return json(await revenueHandler(env, venue), 200, cors);
-    }
-
-    if (url.pathname === "/api/marketing") {
-      const venue = parseVenueParam(url, "All");
-      if (venue === "Shooters Brussels" && !canSeeShooters) {
-        return json({ error: "forbidden" }, 403, cors);
-      }
-      return json(await marketingHandler(env, venue), 200, cors);
-    }
-
-    if (url.pathname === "/api/digest") {
-      return json(await digestHandler(env), 200, cors);
-    }
-
-    return json({ error: "not found" }, 404, cors);
-  },
+  return json({ error: "not found" }, 404, cors);
 };
 
-/** Try to validate; return null on any failure (used by /api/health to detect auth without erroring). */
-async function tryAuth(req: Request, env: Env): Promise<string | null> {
-  try {
-    const id = await validateAccessJwt(req, env.CF_ACCESS_TEAM_DOMAIN, env.CF_ACCESS_AUD);
-    return id.email;
-  } catch {
-    return null;
-  }
-}
+// ──────────────────────── handlers (KV reads) ────────────────────────────
 
 async function revenueHandler(env: Env, venue: Venue | "All"): Promise<RevenueResponse | { error: string }> {
   const yr = new Date().getUTCFullYear();
@@ -166,7 +157,6 @@ async function healthHandler(env: Env, authed: boolean): Promise<HealthResponse 
   const freshness =
     (await env.KV.get<Partial<Record<SourceId, SourceFreshness>>>(KV_KEYS.freshness(), "json")) ?? {};
 
-  // Compute overall status once
   let anyDown = false;
   let anyDegraded = false;
   for (const f of Object.values(freshness) as SourceFreshness[]) {
@@ -176,11 +166,9 @@ async function healthHandler(env: Env, authed: boolean): Promise<HealthResponse 
   }
   const status = anyDown ? "down" : anyDegraded ? "degraded" : "ok";
 
-  // Unauthenticated callers get only the overall status — no upstream detail,
-  // no error strings (which could leak partial secrets despite scrubbing).
+  // Unauthenticated → status only, no upstream detail
   if (!authed) return { status };
 
-  // Authenticated callers get the full picture
   const upstreams: HealthResponse["upstreams"] = {};
   for (const [src, f] of Object.entries(freshness) as Array<[SourceId, SourceFreshness]>) {
     upstreams[src] = { ok: f.errorAt == null, error: f.error };
@@ -191,6 +179,8 @@ async function healthHandler(env: Env, authed: boolean): Promise<HealthResponse 
     generatedAt: new Date().toISOString(),
   };
 }
+
+// ──────────────────────────── helpers ──────────────────────────────────
 
 function parseVenueParam(url: URL, defaultVenue: Venue | "All"): Venue | "All" {
   const v = url.searchParams.get("venue");

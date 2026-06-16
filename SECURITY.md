@@ -58,22 +58,22 @@ Set a calendar reminder. Don't skip — long-lived credentials accumulate exposu
 3. Save — takes effect on their next login
 
 To grant Shooters Brussels access:
-1. Edit `SHOOTERS_ALLOWLIST` in `workers/api/wrangler.toml` `[vars]` section
-2. `cd workers/api && wrangler deploy`
+1. Edit `SHOOTERS_ALLOWLIST` in **Cloudflare Pages → Settings → Environment variables**
+2. Pages → Deployments → Retry deployment (so the new value is picked up)
 
 ## Removing an operator
 
 1. Cloudflare Zero Trust → Applications → WoodCutter Dashboard → Policies → remove their email
 2. (Optional but recommended) Cloudflare Zero Trust → My Team → Users → revoke active sessions
 
-If they had Shooters access: also remove from `SHOOTERS_ALLOWLIST` and redeploy api Worker.
+If they had Shooters access: also remove from `SHOOTERS_ALLOWLIST` (Pages → Settings → Environment variables) and retry the latest Pages deployment.
 
 ## Bumping the cache version
 
 If a breaking change to the response shape ships (rare):
 
 1. In `packages/shared/src/index.ts`, change `KV_VERSION = "v1"` → `"v2"`
-2. Deploy refresh + api Workers together
+2. Deploy refresh Worker + retry the latest Pages deployment together
 3. Manually trigger refresh cron to populate new keys
 4. Old `v1:*` keys orphan in KV — they expire in 7 days or you can `wrangler kv:key delete` them manually
 

@@ -1,5 +1,9 @@
-// Cloudflare Access JWT validation. Defense-in-depth: even if Access is
-// misconfigured at the edge ("Allow Everyone"), this Worker rejects unauthenticated
+// Cloudflare Pages Function — Cloudflare Access JWT validation.
+// Underscore prefix (_auth.ts) means this file is NOT a routable endpoint.
+//
+// Same JWT validation logic as the standalone Worker had: signature + iss +
+// aud + exp + nbf + algorithm pinning. Defence-in-depth: even if Access is
+// misconfigured at the edge ("Allow Everyone"), this rejects unauthenticated
 // requests by validating the JWT signature against Access's JWKS.
 
 interface JWK {
@@ -81,9 +85,11 @@ export interface AccessIdentity {
 }
 
 export class AccessError extends Error {
-  constructor(message: string, public status = 403) {
+  status: number;
+  constructor(message: string, status = 403) {
     super(message);
     this.name = "AccessError";
+    this.status = status;
   }
 }
 
@@ -102,20 +108,19 @@ export async function validateAccessJwt(
   if (payload.exp && payload.exp < now - 30) throw new AccessError("token expired");
   if (payload.nbf && payload.nbf > now + 30) throw new AccessError("token not yet valid");
 
-  // Issuer check — must match our team domain. Without this, a token signed by
-  // ANY Cloudflare Access tenant could pass aud check if AUD tags collided.
+  // Issuer check
   const expectedIss = `https://${teamDomain}.cloudflareaccess.com`;
   if (payload.iss && payload.iss !== expectedIss) {
     throw new AccessError("issuer mismatch");
   }
 
-  // Audience check — pinned to this Access application
+  // Audience check
   const audOk = Array.isArray(payload.aud)
     ? payload.aud.includes(expectedAud)
     : payload.aud === expectedAud;
   if (!audOk) throw new AccessError("audience mismatch");
 
-  // Algorithm pinning — header.alg must be RS256, never "none" or HS256
+  // Algorithm pinning — header.alg must be RS256
   if (header.alg !== "RS256") throw new AccessError("unexpected signing algorithm");
 
   // Signature verification
@@ -133,4 +138,18 @@ export async function validateAccessJwt(
 
   if (!payload.email) throw new AccessError("token missing email");
   return { email: payload.email, sub: payload.sub };
+}
+
+/** Try to validate; return null on any failure (used by /api/health). */
+export async function tryAuth(
+  req: Request,
+  teamDomain: string,
+  expectedAud: string,
+): Promise<string | null> {
+  try {
+    const id = await validateAccessJwt(req, teamDomain, expectedAud);
+    return id.email;
+  } catch {
+    return null;
+  }
 }
