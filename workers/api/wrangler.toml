@@ -3,6 +3,14 @@ main = "src/index.ts"
 compatibility_date = "2025-09-01"
 compatibility_flags = ["nodejs_compat"]
 
+# Bind this Worker to /api/* on your dashboard domain so the Access cookie
+# (set on dashboard.<your-domain>) is sent automatically to the API.
+# Replace dashboard.example.com with your actual domain before deploying.
+# Comment out this block to deploy to woodcutter-api.<account>.workers.dev only.
+# [[routes]]
+# pattern = "dashboard.example.com/api/*"
+# zone_name = "example.com"
+
 # Read-only on KV. Refresh worker is the only writer.
 [[kv_namespaces]]
 binding = "KV"
