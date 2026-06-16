@@ -1,0 +1,16 @@
+# Node
+node_modules/
+dist/
+.wrangler/
+.dev.vars
+.env
+.env.local
+
+# Editor
+.DS_Store
+*.log
+.claude/
+.vscode/launch.json
+
+# Secrets
+*.json.secret

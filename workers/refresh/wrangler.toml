@@ -1,0 +1,25 @@
+name = "woodcutter-refresh"
+main = "src/index.ts"
+compatibility_date = "2025-09-01"
+compatibility_flags = ["nodejs_compat"]
+
+# Same KV namespace as the api worker — refresh is the writer, api is the reader.
+[[kv_namespaces]]
+binding = "KV"
+id = "REPLACE_WITH_KV_NAMESPACE_ID"
+
+# Cloudflare runs cron in UTC.
+# Brussels = UTC+1 (winter) / UTC+2 (summer). 05:13 UTC = 06:13/07:13 Brussels.
+# Off-minute (:13) avoids the cron stampede that hits at :00 globally.
+[triggers]
+crons = [
+  "13 5 * * *"      # Daily — refresh all sources before the workday starts
+]
+
+[vars]
+ODOO_URL = "https://woodcutter.odoo.com"
+ODOO_DB = "woodcutter"
+ODOO_USER = "operations@woodcutter.be"
+
+[observability]
+enabled = true

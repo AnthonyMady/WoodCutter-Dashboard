@@ -1,0 +1,17 @@
+name = "woodcutter-api"
+main = "src/index.ts"
+compatibility_date = "2025-09-01"
+compatibility_flags = ["nodejs_compat"]
+
+# Read-only on KV. Refresh worker is the only writer.
+[[kv_namespaces]]
+binding = "KV"
+id = "REPLACE_WITH_KV_NAMESPACE_ID"
+
+# Set CF_ACCESS_AUD and CF_ACCESS_TEAM_DOMAIN via `wrangler secret put`.
+
+[vars]
+SHOOTERS_ALLOWLIST = "anthony.mady.work@gmail.com,romain2felix@gmail.com,julien.vandenitte.work@gmail.com"
+
+[observability]
+enabled = true
