@@ -20,7 +20,9 @@ interface AccessJwtPayload {
   email?: string;
   iat: number;
   exp: number;
+  nbf?: number;
   aud: string | string[];
+  iss?: string;
 }
 
 let cachedJwks: { jwks: JWKS; fetchedAt: number } | null = null;
@@ -95,14 +97,28 @@ export async function validateAccessJwt(
 
   const { header, payload, signedData, signature } = decodeJwtSegments(jwt);
 
+  // Time validation — exp + nbf with 30s clock skew tolerance
   const now = Math.floor(Date.now() / 1000);
-  if (payload.exp && payload.exp < now) throw new AccessError("token expired");
+  if (payload.exp && payload.exp < now - 30) throw new AccessError("token expired");
+  if (payload.nbf && payload.nbf > now + 30) throw new AccessError("token not yet valid");
 
+  // Issuer check — must match our team domain. Without this, a token signed by
+  // ANY Cloudflare Access tenant could pass aud check if AUD tags collided.
+  const expectedIss = `https://${teamDomain}.cloudflareaccess.com`;
+  if (payload.iss && payload.iss !== expectedIss) {
+    throw new AccessError("issuer mismatch");
+  }
+
+  // Audience check — pinned to this Access application
   const audOk = Array.isArray(payload.aud)
     ? payload.aud.includes(expectedAud)
     : payload.aud === expectedAud;
   if (!audOk) throw new AccessError("audience mismatch");
 
+  // Algorithm pinning — header.alg must be RS256, never "none" or HS256
+  if (header.alg !== "RS256") throw new AccessError("unexpected signing algorithm");
+
+  // Signature verification
   const jwks = await getJwks(teamDomain);
   const jwk = jwks.keys.find((k) => k.kid === header.kid);
   if (!jwk) throw new AccessError("unknown signing key (kid)");

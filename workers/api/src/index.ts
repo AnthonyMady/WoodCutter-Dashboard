@@ -23,22 +23,53 @@ export interface Env {
   CF_ACCESS_AUD: string;
   CF_ACCESS_TEAM_DOMAIN: string;
   SHOOTERS_ALLOWLIST: string;
+  /** Comma-separated allowed origins for CORS (e.g. "https://dashboard.example.com"). Optional — defaults to same-origin only. */
+  ALLOWED_ORIGINS?: string;
 }
 
-const CORS_HEADERS = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "Cf-Access-Jwt-Assertion,Authorization,Content-Type",
-  "Access-Control-Allow-Methods": "GET,OPTIONS",
+const SECURITY_HEADERS = {
+  // Defence-in-depth headers that apply to every JSON response.
+  "X-Content-Type-Options": "nosniff",
+  "X-Frame-Options": "DENY",
+  "Referrer-Policy": "no-referrer",
+  "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
+  // CSP: this Worker only emits JSON. No need to allow scripts/styles.
+  "Content-Security-Policy": "default-src 'none'; frame-ancestors 'none'",
 };
+
+function corsHeaders(req: Request, env: Env): Record<string, string> {
+  const origin = req.headers.get("Origin") ?? "";
+  const allowed = (env.ALLOWED_ORIGINS ?? "").split(",").map((s) => s.trim()).filter(Boolean);
+
+  // Same-origin (no Origin header) → no CORS needed
+  // Cross-origin from an allowed origin → echo it back
+  // Anything else → no CORS headers (browser blocks)
+  if (origin && allowed.includes(origin)) {
+    return {
+      "Access-Control-Allow-Origin": origin,
+      "Access-Control-Allow-Headers": "Cf-Access-Jwt-Assertion,Content-Type",
+      "Access-Control-Allow-Methods": "GET,OPTIONS",
+      "Access-Control-Allow-Credentials": "true",
+      "Vary": "Origin",
+    };
+  }
+  return {};
+}
 
 export default {
   async fetch(req: Request, env: Env): Promise<Response> {
-    if (req.method === "OPTIONS") return new Response(null, { headers: CORS_HEADERS });
+    const cors = corsHeaders(req, env);
+
+    if (req.method === "OPTIONS") return new Response(null, { headers: cors });
 
     const url = new URL(req.url);
 
-    // /api/health is intentionally unauthenticated — for synthetic monitors.
-    if (url.pathname === "/api/health") return json(await healthHandler(env));
+    // /api/health is public — but returns ONLY a single overall status to
+    // unauthenticated callers. Per-source detail requires a valid JWT.
+    if (url.pathname === "/api/health") {
+      const authed = await tryAuth(req, env);
+      return json(await healthHandler(env, authed != null), 200, cors);
+    }
 
     let identity;
     try {
@@ -46,39 +77,49 @@ export default {
     } catch (err) {
       const status = err instanceof AccessError ? err.status : 500;
       const reason = err instanceof Error ? err.message : "unauthorised";
-      return json({ error: reason }, status);
+      return json({ error: reason }, status, cors);
     }
 
     const allowed = parseList(env.SHOOTERS_ALLOWLIST);
     const canSeeShooters = allowed.includes(identity.email);
 
     if (url.pathname === "/api/meta") {
-      return json(await metaHandler(env, identity.email, canSeeShooters));
+      return json(await metaHandler(env, identity.email, canSeeShooters), 200, cors);
     }
 
     if (url.pathname === "/api/revenue") {
       const venue = parseVenueParam(url, "All");
       if (venue === "Shooters Brussels" && !canSeeShooters) {
-        return json({ error: "forbidden" }, 403);
+        return json({ error: "forbidden" }, 403, cors);
       }
-      return json(await revenueHandler(env, venue));
+      return json(await revenueHandler(env, venue), 200, cors);
     }
 
     if (url.pathname === "/api/marketing") {
       const venue = parseVenueParam(url, "All");
       if (venue === "Shooters Brussels" && !canSeeShooters) {
-        return json({ error: "forbidden" }, 403);
+        return json({ error: "forbidden" }, 403, cors);
       }
-      return json(await marketingHandler(env, venue));
+      return json(await marketingHandler(env, venue), 200, cors);
     }
 
     if (url.pathname === "/api/digest") {
-      return json(await digestHandler(env));
+      return json(await digestHandler(env), 200, cors);
     }
 
-    return json({ error: "not found" }, 404);
+    return json({ error: "not found" }, 404, cors);
   },
 };
+
+/** Try to validate; return null on any failure (used by /api/health to detect auth without erroring). */
+async function tryAuth(req: Request, env: Env): Promise<string | null> {
+  try {
+    const id = await validateAccessJwt(req, env.CF_ACCESS_TEAM_DOMAIN, env.CF_ACCESS_AUD);
+    return id.email;
+  } catch {
+    return null;
+  }
+}
 
 async function revenueHandler(env: Env, venue: Venue | "All"): Promise<RevenueResponse | { error: string }> {
   const yr = new Date().getUTCFullYear();
@@ -121,20 +162,31 @@ async function metaHandler(env: Env, email: string, canSeeShooters: boolean): Pr
   };
 }
 
-async function healthHandler(env: Env): Promise<HealthResponse> {
+async function healthHandler(env: Env, authed: boolean): Promise<HealthResponse | { status: string }> {
   const freshness =
     (await env.KV.get<Partial<Record<SourceId, SourceFreshness>>>(KV_KEYS.freshness(), "json")) ?? {};
-  const upstreams: HealthResponse["upstreams"] = {};
+
+  // Compute overall status once
   let anyDown = false;
   let anyDegraded = false;
-  for (const [src, f] of Object.entries(freshness) as Array<[SourceId, SourceFreshness]>) {
+  for (const f of Object.values(freshness) as SourceFreshness[]) {
     const ok = f.errorAt == null;
-    upstreams[src] = { ok, error: f.error };
     if (!ok && !f.okAt) anyDown = true;
     else if (!ok) anyDegraded = true;
   }
+  const status = anyDown ? "down" : anyDegraded ? "degraded" : "ok";
+
+  // Unauthenticated callers get only the overall status — no upstream detail,
+  // no error strings (which could leak partial secrets despite scrubbing).
+  if (!authed) return { status };
+
+  // Authenticated callers get the full picture
+  const upstreams: HealthResponse["upstreams"] = {};
+  for (const [src, f] of Object.entries(freshness) as Array<[SourceId, SourceFreshness]>) {
+    upstreams[src] = { ok: f.errorAt == null, error: f.error };
+  }
   return {
-    status: anyDown ? "down" : anyDegraded ? "degraded" : "ok",
+    status,
     upstreams,
     generatedAt: new Date().toISOString(),
   };
@@ -153,13 +205,14 @@ function parseList(s: string | undefined): string[] {
   return s.split(",").map((x) => x.trim()).filter((x) => x.length > 0);
 }
 
-function json(data: unknown, status = 200): Response {
+function json(data: unknown, status = 200, cors: Record<string, string> = {}): Response {
   return new Response(JSON.stringify(data), {
     status,
     headers: {
       "Content-Type": "application/json; charset=utf-8",
-      "Cache-Control": "private, max-age=60",
-      ...CORS_HEADERS,
+      "Cache-Control": "private, no-store",
+      ...SECURITY_HEADERS,
+      ...cors,
     },
   });
 }

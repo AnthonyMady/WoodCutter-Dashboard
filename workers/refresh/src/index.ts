@@ -104,7 +104,7 @@ async function refreshStripe(env: Env, now: Date): Promise<void> {
   for (const [venue, rows] of result.rowsByVenue) {
     const key = KV_KEYS.stripeSlice(venue, now.getUTCFullYear());
     assertSafeKvKey(key);
-    await env.KV.put(key, JSON.stringify(rows), { expirationTtl: 24 * 3600 });
+    await env.KV.put(key, JSON.stringify(rows), { expirationTtl: 7 * 24 * 3600 });
   }
   if (result.errors.length === 0) {
     fresh.stripe = { okAt: now.toISOString(), errorAt: null };
@@ -138,12 +138,12 @@ async function refreshOdooViva(env: Env, now: Date): Promise<void> {
     for (const [venue, rows] of odoo.posRowsByVenue) {
       const key = KV_KEYS.odooPosSlice(venue, now.getUTCFullYear());
       assertSafeKvKey(key);
-      await env.KV.put(key, JSON.stringify(rows), { expirationTtl: 48 * 3600 });
+      await env.KV.put(key, JSON.stringify(rows), { expirationTtl: 7 * 24 * 3600 });
     }
     for (const [venue, rows] of odoo.invoiceRowsByVenue) {
       const key = KV_KEYS.odooInvoicesSlice(venue, now.getUTCFullYear());
       assertSafeKvKey(key);
-      await env.KV.put(key, JSON.stringify(rows), { expirationTtl: 48 * 3600 });
+      await env.KV.put(key, JSON.stringify(rows), { expirationTtl: 7 * 24 * 3600 });
     }
     for (const e of odoo.errors) {
       partial.push({
@@ -187,7 +187,7 @@ async function refreshOdooViva(env: Env, now: Date): Promise<void> {
     const vivaRows = await fetchAllViva(env, jan1, now);
     const key = KV_KEYS.vivaSlice(now.getUTCFullYear());
     assertSafeKvKey(key);
-    await env.KV.put(key, JSON.stringify(vivaRows), { expirationTtl: 24 * 3600 });
+    await env.KV.put(key, JSON.stringify(vivaRows), { expirationTtl: 7 * 24 * 3600 });
     fresh.viva = { okAt: now.toISOString(), errorAt: null };
     log(`[refresh] viva rows=${vivaRows.length}`);
   } catch (err) {
@@ -214,11 +214,11 @@ async function refreshSupermetrics(env: Env, now: Date): Promise<void> {
 
     const gKey = KV_KEYS.supermetricsGoogleSlice(yr);
     assertSafeKvKey(gKey);
-    await env.KV.put(gKey, JSON.stringify(sm.google), { expirationTtl: 36 * 3600 });
+    await env.KV.put(gKey, JSON.stringify(sm.google), { expirationTtl: 7 * 24 * 3600 });
 
     const mKey = KV_KEYS.supermetricsMetaSlice(yr);
     assertSafeKvKey(mKey);
-    await env.KV.put(mKey, JSON.stringify(sm.meta), { expirationTtl: 36 * 3600 });
+    await env.KV.put(mKey, JSON.stringify(sm.meta), { expirationTtl: 7 * 24 * 3600 });
 
     if (sm.errors.length === 0) {
       fresh.supermetrics_google = { okAt: now.toISOString(), errorAt: null };
@@ -291,14 +291,17 @@ async function rebuildAggregated(
     const mktKey = KV_KEYS.marketing(String(venue), yr);
     assertSafeKvKey(revKey);
     assertSafeKvKey(mktKey);
-    await env.KV.put(revKey, JSON.stringify(revenue), { expirationTtl: 30 * 60 });
-    await env.KV.put(mktKey, JSON.stringify(marketing), { expirationTtl: 30 * 60 });
+    // No TTL — the dashboard ALWAYS has data to show. If cron breaks for a week,
+    // users see last-known-good with `sourceFreshness` showing how stale it is.
+    // Better than a blank dashboard.
+    await env.KV.put(revKey, JSON.stringify(revenue));
+    await env.KV.put(mktKey, JSON.stringify(marketing));
   }
 
   const digest = buildDigest(input);
   const dKey = KV_KEYS.digest(yr);
   assertSafeKvKey(dKey);
-  await env.KV.put(dKey, JSON.stringify(digest), { expirationTtl: 60 * 60 });
+  await env.KV.put(dKey, JSON.stringify(digest));
 
   log(`[refresh] aggregated ${venueOptions.length} venues + digest`);
 }

@@ -3,6 +3,11 @@ main = "src/index.ts"
 compatibility_date = "2025-09-01"
 compatibility_flags = ["nodejs_compat"]
 
+# SECURITY: no public URL. The Worker is invoked ONLY by the cron trigger.
+# Without this, Cloudflare exposes it at woodcutter-refresh.<account>.workers.dev,
+# and even though our fetch handler returns 403, the URL itself is a probe surface.
+workers_dev = false
+
 # Same KV namespace as the api worker — refresh is the writer, api is the reader.
 [[kv_namespaces]]
 binding = "KV"

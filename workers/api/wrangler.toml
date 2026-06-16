@@ -3,6 +3,12 @@ main = "src/index.ts"
 compatibility_date = "2025-09-01"
 compatibility_flags = ["nodejs_compat"]
 
+# Disable the public *.workers.dev URL — once the route binding below is set,
+# this Worker is reachable ONLY at dashboard.<your-domain>/api/* (behind Access).
+# Set this to true temporarily during initial setup if you need to test before
+# the custom domain is ready.
+workers_dev = false
+
 # Bind this Worker to /api/* on your dashboard domain so the Access cookie
 # (set on dashboard.<your-domain>) is sent automatically to the API.
 # Replace dashboard.example.com with your actual domain before deploying.
