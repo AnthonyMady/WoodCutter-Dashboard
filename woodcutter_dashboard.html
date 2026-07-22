@@ -219,6 +219,10 @@ tr.row-critical:hover td{background:#fee2e2}
       <option value="8">8+ weeks</option>
     </select>
   </div>
+  <div id="lazy-loading-bar" style="display:none;align-items:center;gap:10px;padding:7px 28px;background:#eff6ff;border-bottom:1px solid #bfdbfe;font-size:12px;color:#1d4ed8">
+    <div class="spinner" style="width:14px;height:14px;border-width:2px"></div>
+    Loading week data…
+  </div>
 
   <main>
     <div class="kpis" id="kpis"></div>
@@ -309,6 +313,22 @@ function showAuthError(msg) {
 }
 
 // ── LOAD DATA ──────────────────────────────────────────
+const EAGER_WEEKS = 3; // number of most-recent weeks to load on startup
+
+async function fetchWeek(wk) {
+  const rows = [];
+  for (const file of ALL_WEEKS_FILES[wk] || []) {
+    const content = await driveDownload(file.id);
+    rows.push(...parseCSV(content));
+  }
+  const seen = new Set();
+  ALL_WEEKS[wk] = rows.filter(r => {
+    if (seen.has(r.ExternalID)) return false;
+    seen.add(r.ExternalID); return true;
+  });
+  WEEKLY[wk] = ALL_WEEKS[wk].length;
+}
+
 async function loadData() {
   show('loading-screen'); setLoading('Finding folder in Google Drive…');
   try {
@@ -334,26 +354,21 @@ async function loadData() {
     ALL_WEEKS = {};
     ALL_WEEKS_FILES = byWeek;
     ALL_WEEK_NUMS = weeks;
-    setLoading(`Loading ${csvRes.files.length} file(s) across ${weeks.length} week(s)…`);
 
-    for (const wk of weeks) {
-      ALL_WEEKS[wk] = [];
-      for (const file of byWeek[wk]) {
-        const content = await driveDownload(file.id);
-        ALL_WEEKS[wk] = ALL_WEEKS[wk].concat(parseCSV(content));
-      }
-      // deduplicate by ExternalID within the week
-      const seen = new Set();
-      ALL_WEEKS[wk] = ALL_WEEKS[wk].filter(r => {
-        if (seen.has(r.ExternalID)) return false;
-        seen.add(r.ExternalID); return true;
-      });
-      WEEKLY[wk] = ALL_WEEKS[wk].length;
+    // Eager-load the 3 most recent weeks; mark the rest as pending (null)
+    const eagerWeeks = weeks.slice(0, EAGER_WEEKS);
+    const lazyWeeks  = weeks.slice(EAGER_WEEKS);
+    lazyWeeks.forEach(wk => { ALL_WEEKS[wk] = null; WEEKLY[wk] = null; });
+
+    setLoading(`Loading ${eagerWeeks.length} of ${weeks.length} week(s)…`);
+    for (const wk of eagerWeeks) {
+      setLoading(`Loading week ${wk}…`);
+      await fetchWeek(wk);
     }
 
     populateWeekFilter();
     show('dashboard');
-    setWeek(weeks[0]); // default to latest week
+    await setWeek(weeks[0]);
   } catch (e) {
     show('dashboard');
     document.querySelector('main').innerHTML = `<div class="error-box">⚠ ${e.message}</div>`;
@@ -367,15 +382,31 @@ function populateWeekFilter() {
   ALL_WEEK_NUMS.forEach((wk, i) => {
     const o = document.createElement('option');
     o.value = wk;
-    o.textContent = `W${wk}${i === 0 ? ' (latest)' : ''}`;
+    const loaded = ALL_WEEKS[wk] !== null;
+    o.textContent = `W${wk}${i === 0 ? ' (latest)' : ''}${loaded ? '' : ' ·'}`;
     sel.appendChild(o);
   });
 }
 
-function setWeek(wk) {
+async function setWeek(wk) {
   ACTIVE_WEEK = wk;
   const idx    = ALL_WEEK_NUMS.indexOf(wk);
   const prevWk = idx + 1 < ALL_WEEK_NUMS.length ? ALL_WEEK_NUMS[idx + 1] : null;
+
+  // Lazy-load this week if not yet fetched
+  if (ALL_WEEKS[wk] === null) {
+    document.getElementById('lazy-loading-bar').style.display = 'flex';
+    await fetchWeek(wk);
+    populateWeekFilter(); // refresh to remove "·" indicator
+    document.getElementById('lazy-loading-bar').style.display = 'none';
+  }
+  // Also lazy-load the previous week if needed (for reconciliation)
+  if (prevWk !== null && ALL_WEEKS[prevWk] === null) {
+    document.getElementById('lazy-loading-bar').style.display = 'flex';
+    await fetchWeek(prevWk);
+    populateWeekFilter();
+    document.getElementById('lazy-loading-bar').style.display = 'none';
+  }
 
   RAW      = (ALL_WEEKS[wk] || []).slice().sort((a, b) => b.Days - a.Days);
   PREV_RAW = prevWk !== null ? (ALL_WEEKS[prevWk] || []) : [];
@@ -550,6 +581,8 @@ function shortJournal(j) {
   if (j.includes('SHOOTERS EVERYWHERE') || j.includes('Shooters Everywhere')) return 'Shooters Everywhere';
   if (j.includes('SHOOTERS BRUSSELS')   || j.includes('Shooters Brussels'))   return 'Shooters Brussels';
   if (j.includes('SHOOTERS'))                                                  return 'Shooters';
+  // Berlin
+  if (j.includes('BERLIN') || j.includes('Berlin')) return 'Berlin';
   // Credit cards — identified by last 4 digits
   if (j.includes('8088')) return 'CC WoodCutter Brussels 8088';
   if (j.includes('0152')) return 'CC WoodCutter Antwerp 0152';
